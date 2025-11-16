@@ -106,10 +106,14 @@ jobs:
         run: |
           set -euxo pipefail
 
+          # Toolchains that RUN on amd64, TARGET aarch64 (pin :amd64 explicitly)
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            gcc-aarch64-linux-gnu:amd64 \
+            g++-aarch64-linux-gnu:amd64 \
+            binutils-aarch64-linux-gnu:amd64 \
             clang ninja-build pkg-config
 
+          # Target headers/libs for linking (real ARM64 sysroot bits)
           sudo apt-get install -y --no-install-recommends \
             libc6-dev:arm64 linux-libc-dev:arm64 zlib1g-dev:arm64 \
             libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
