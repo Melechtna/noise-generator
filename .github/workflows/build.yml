@@ -82,7 +82,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            binutils-aarch64-linux-gnu clang ninja-build pkg-config curl bzip2 make autoconf automake libtool
+            binutils-aarch64-linux-gnu clang ninja-build pkg-config \
+            curl bzip2 make autoconf automake libtool gperf
 
       - name: Build ALSA (arm64) into local sysroot
         shell: bash
