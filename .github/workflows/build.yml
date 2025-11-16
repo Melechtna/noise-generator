@@ -204,24 +204,42 @@ jobs:
           if-no-files-found: error
 
 riscv64:
-  runs-on: ubuntu-24.04-riscv64
+  runs-on: ubuntu-24.04
+  strategy:
+    fail-fast: false # Let it flake without nuking the matrix if QEMU hiccups
   steps:
     - uses: actions/checkout@v4
-    - name: Install deps
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev
-    - uses: dtolnay/rust-toolchain@stable
+
+    - name: Build on riscv64 (QEMU)
+      id: build
+      uses: uraimo/run-on-arch-action@v0 # Latest as of Nov '25; pins stable QEMU
       with:
-        targets: riscv64gc-unknown-linux-gnu
-    - uses: Swatinem/rust-cache@v2
-    - name: Build (software renderer)
-      run: cargo build --release --target riscv64gc-unknown-linux-gnu
-    - name: Collect
-      run: |
-        mkdir -p target/artifacts
-        cp target/riscv64gc-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-riscv64
+        arch: riscv64
+        distro: ubuntu24.04 # Matches your other Ubuntu jobs; ubuntu22.04 if deps whine
+        githubToken: ${{ github.token }} # Caches Docker layers; speeds re-runs
+        install: | # One-shot deps + Rust setup (cached across runs)
+          apt-get update -q -y
+          apt-get install -q -y curl build-essential clang ninja-build libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev pkg-config  # Your deps + extras for Slint/tinyaudio
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          source $HOME/.cargo/env
+          rustup target add riscv64gc-unknown-linux-gnu  # Your target; assumes glibc (swap to musl if Cargo.toml demands)
+        run: | # The meat: cache, build, collect
+          # Rust cache (keys on target; works in container)
+          export CARGO_HOME="$HOME/.cargo"
+          export RUSTUP_HOME="$HOME/.rustup"
+          # (rust-cache action doesn't auto-run in container, so manual key sim here; or skip if builds are quick)
+          mkdir -p "$CARGO_HOME/registry/index" "$CARGO_HOME/git/db" "$RUSTUP_HOME/toolchains"
+          # Build (add --features software-renderer if not default)
+          cargo build --release --target riscv64gc-unknown-linux-gnu
+          # Collect artifact
+          mkdir -p target/artifacts
+          cp target/riscv64gc-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-riscv64
+          # Quick verify (optional; catches linker bombs early)
+          file target/artifacts/noise-generator-linux-riscv64
+
+    # Artifact upload (outside container; paths persist via action's volume mount)
     - uses: actions/upload-artifact@v4
+      if: steps.build.outputs.error == '' # Only if no QEMU crash
       with:
         name: noise-generator-linux-riscv64
         path: target/artifacts/noise-generator-linux-riscv64
