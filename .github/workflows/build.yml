@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-        
+
       - name: Sanitize APT sources for multiarch (amd64 + arm64)
         shell: bash
         run: |
@@ -103,7 +103,7 @@ jobs:
 
       - name: Install cross toolchain + ARM64 sysroot
         run: |
-          # Cross toolchains (run on amd64, target aarch64)
+          # Cross toolchains that RUN on amd64 and TARGET aarch64
           sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             clang ninja-build pkg-config
@@ -115,9 +115,6 @@ jobs:
             libx11-dev:arm64 libxkbcommon-dev:arm64 libxcb1-dev:arm64 \
             libxcb-render0-dev:arm64 libxcb-shape0-dev:arm64 libxcb-xfixes0-dev:arm64 \
             libwayland-dev:arm64 libgl1-mesa-dev:arm64
-
-          # If you later hit -lstdc++ link errors for target, uncomment:
-          # sudo apt-get install -y --no-install-recommends libstdc++-13-dev:arm64
 
       - uses: dtolnay/rust-toolchain@stable
         with:
