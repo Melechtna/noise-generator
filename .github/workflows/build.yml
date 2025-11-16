@@ -62,44 +62,56 @@ jobs:
           if-no-files-found: error
 
   linux-arm64-cross:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
+      runs-on: ubuntu-24.04
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: Install cross toolchain + ARM64 sysroot
-        run: |
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config-aarch64-linux-gnu \
-            libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
-            libxkbcommon-dev:arm64 libwayland-dev:arm64 libgl1-mesa-dev:arm64 \
-            clang ninja-build
+        # Fix 404s by adding ubuntu-ports arm64 sources
+        - name: Enable arm64 repos (ubuntu-ports) + update
+          run: |
+            sudo dpkg --add-architecture arm64
+            sudo tee /etc/apt/sources.list.d/arm64.list >/dev/null <<'EOF'
+            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
+            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
+            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
+            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse
+            EOF
+            sudo apt-get update
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-unknown-linux-gnu
+        - name: Install cross toolchain + ARM64 sysroot
+          run: |
+            sudo apt-get install -y \
+              gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config-aarch64-linux-gnu \
+              libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
+              libxkbcommon-dev:arm64 libwayland-dev:arm64 libgl1-mesa-dev:arm64 \
+              clang ninja-build
 
-      - uses: Swatinem/rust-cache@v2
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            targets: aarch64-unknown-linux-gnu
 
-      - name: Build (cross)
-        env:
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
-          PKG_CONFIG_SYSROOT_DIR: /
-          PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
-          PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
-        run: |
-          cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
-          mkdir -p target/artifacts
-          cp target/aarch64-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-arm64
+        - uses: Swatinem/rust-cache@v2
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: noise-generator-linux-arm64
-          path: target/artifacts/noise-generator-linux-arm64
-          if-no-files-found: error
+        - name: Build (cross)
+          env:
+            CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+            CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+            PKG_CONFIG_ALLOW_CROSS: "1"
+            PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
+            PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
+            PKG_CONFIG_SYSROOT_DIR: /
+          run: |
+            cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
+            mkdir -p target/artifacts
+            cp target/aarch64-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-arm64
 
+        - uses: actions/upload-artifact@v4
+          with:
+            name: noise-generator-linux-arm64
+            path: target/artifacts/noise-generator-linux-arm64
+            if-no-files-found: error
+    
   # =========================
   # Windows (MSVC) x64 / ARM64
   # =========================
