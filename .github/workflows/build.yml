@@ -62,86 +62,86 @@ jobs:
           if-no-files-found: error
 
   linux-arm64-cross:
-      runs-on: ubuntu-24.04
-      steps:
-        - uses: actions/checkout@v4
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
 
-        # Fix 404s by adding ubuntu-ports arm64 sources
-        - name: Sanitize APT sources for multiarch (amd64 + arm64)
-          shell: bash
-          run: |
-            set -euxo pipefail
-            sudo dpkg --add-architecture arm64
+      # Fix 404s by adding ubuntu-ports arm64 sources
+      - name: Sanitize APT sources for multiarch (amd64 + arm64)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo dpkg --add-architecture arm64
 
-            # Disable ALL default sources (legacy .list and deb822 .sources)
-            sudo mkdir -p /etc/apt/disabled-sources
-            for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
-              [ -e "$f" ] && sudo mv "$f" "/etc/apt/disabled-sources/$(basename "$f").bak" || true
-            done
+          # Disable ALL default sources (legacy .list and deb822 .sources)
+          sudo mkdir -p /etc/apt/disabled-sources
+          for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -e "$f" ] && sudo mv "$f" "/etc/apt/disabled-sources/$(basename "$f").bak" || true
+          done
 
-            # amd64 from normal mirrors
-            sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
-            Types: deb
-            URIs: http://azure.archive.ubuntu.com/ubuntu
-            Suites: noble noble-updates noble-backports
-            Components: main restricted universe multiverse
-            Architectures: amd64
-            Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-            EOF
-            sudo tee -a /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
-            Types: deb
-            URIs: http://security.ubuntu.com/ubuntu
-            Suites: noble-security
-            Components: main restricted universe multiverse
-            Architectures: amd64
-            Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-            EOF
+          # amd64 from normal mirrors
+          sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
+          Types: deb
+          URIs: http://azure.archive.ubuntu.com/ubuntu
+          Suites: noble noble-updates noble-backports
+          Components: main restricted universe multiverse
+          Architectures: amd64
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          EOF
+          sudo tee -a /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
+          Types: deb
+          URIs: http://security.ubuntu.com/ubuntu
+          Suites: noble-security
+          Components: main restricted universe multiverse
+          Architectures: amd64
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          EOF
 
-            # arm64 only from ports
-            sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources >/dev/null <<'EOF'
-            Types: deb
-            URIs: http://ports.ubuntu.com/ubuntu-ports
-            Suites: noble noble-updates noble-backports noble-security
-            Components: main restricted universe multiverse
-            Architectures: arm64
-            Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-            EOF
+          # arm64 only from ports
+          sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources >/dev/null <<'EOF'
+          Types: deb
+          URIs: http://ports.ubuntu.com/ubuntu-ports
+          Suites: noble noble-updates noble-backports noble-security
+          Components: main restricted universe multiverse
+          Architectures: arm64
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          EOF
 
-            sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 update
 
-        - name: Install cross toolchain + ARM64 sysroot
-          run: |
-            sudo apt-get install -y \
-              gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config-aarch64-linux-gnu \
-              libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
-              libxkbcommon-dev:arm64 libwayland-dev:arm64 libgl1-mesa-dev:arm64 \
-              clang ninja-build
+      - name: Install cross toolchain + ARM64 sysroot
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config-aarch64-linux-gnu \
+            libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
+            libxkbcommon-dev:arm64 libwayland-dev:arm64 libgl1-mesa-dev:arm64 \
+            libx11-dev:arm64 libxcb1-dev:arm64 libxcb-render0-dev:arm64 \
+            libxcb-shape0-dev:arm64 libxcb-xfixes0-dev:arm64 zlib1g-dev:arm64 \
+            clang ninja-build
 
-        - uses: dtolnay/rust-toolchain@stable
-          with:
-            targets: aarch64-unknown-linux-gnu
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
 
-        - uses: Swatinem/rust-cache@v2
+      - name: Build (cross)
+        env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          PKG_CONFIG: aarch64-linux-gnu-pkg-config
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          PKG_CONFIG_SYSROOT_DIR: /
+        run: |
+          cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
+          mkdir -p target/artifacts
+          cp target/aarch64-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-arm64
 
-        - name: Build (cross)
-          env:
-            CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-            CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
-            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-            PKG_CONFIG_ALLOW_CROSS: "1"
-            PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
-            PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
-            PKG_CONFIG_SYSROOT_DIR: /
-          run: |
-            cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
-            mkdir -p target/artifacts
-            cp target/aarch64-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-arm64
-
-        - uses: actions/upload-artifact@v4
-          with:
-            name: noise-generator-linux-arm64
-            path: target/artifacts/noise-generator-linux-arm64
-            if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noise-generator-linux-arm64
+          path: target/artifacts/noise-generator-linux-arm64
+          if-no-files-found: error
 
   # =========================
   # Windows (MSVC) x64 / ARM64
