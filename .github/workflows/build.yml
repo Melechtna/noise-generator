@@ -40,7 +40,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             clang ninja-build pkg-config \
-            libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev
+            libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev \
+            libfreetype6-dev libfontconfig1-dev
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -165,14 +166,25 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept licenses & install platform + build-tools
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-30"
+          LATEST=$(sdkmanager --list | sed -n 's/.*build-tools;\([0-9.]\+\).*/\1/p' | sort -Vr | head -n1)
+          sdkmanager "build-tools;${LATEST}"
+          # alias whatever was installed to 36.1 for your script
+          mkdir -p "$ANDROID_HOME/build-tools"
+          if [ ! -d "$ANDROID_HOME/build-tools/36.1" ]; then
+            ln -s "$ANDROID_HOME/build-tools/${LATEST}" "$ANDROID_HOME/build-tools/36.1"
+          fi
 
-      - name: Install NDK (r26d)
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r26d
-          add-to-path: true
+      - name: Install NDK 26.3.11579264
+        shell: bash
+        run: |
+          sdkmanager "ndk;26.3.11579264"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.3.11579264" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Install platforms & build-tools and alias to 36.1
         shell: bash
