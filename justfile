@@ -10,25 +10,25 @@
 #   just install
 #   just uninstall
 
-project := "noise-generator"
+# Run every recipe with bash + strict flags
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+project   := "noise-generator"
 local_bin := "./{{project}}"
-icon := "./icon.png"
-desktop := "linux/io.melechtna.noise-generator.desktop"
-metainfo := "linux/io.melechtna.NoiseGenerator.metainfo.xml"
+icon      := "./icon.png"
+desktop   := "linux/io.melechtna.noise-generator.desktop"
+metainfo  := "linux/io.melechtna.NoiseGenerator.metainfo.xml"
 
 default: install
 
 _install_checks:
-	#!/usr/bin/env bash
-	set -euo pipefail
-
 	# Detect arch to give a nicer hint if the binary is missing
 	arch="$(uname -m || echo unknown)"
 	case "$arch" in
-	  x86_64)   suggested="noise-generator-linux-x64";;
-	  aarch64)  suggested="noise-generator-linux-arm64";;
-	  riscv64)  suggested="noise-generator-linux-riscv64";;
-	  *)        suggested="noise-generator-linux-<your-arch>";;
+	  x86_64)   suggested="noise-generator-linux-x64"   ;;
+	  aarch64)  suggested="noise-generator-linux-arm64" ;;
+	  riscv64)  suggested="noise-generator-linux-riscv64" ;;
+	  *)        suggested="noise-generator-linux-<your-arch>" ;;
 	esac
 
 	# Executable present?
@@ -56,8 +56,6 @@ _install_checks:
 	fi
 
 install: _install_checks
-	#!/usr/bin/env bash
-	set -euo pipefail
 	echo "▶ Installing {{project}} system-wide"
 	sudo bash -euxo pipefail -c '
 	  # Binary
@@ -81,8 +79,6 @@ install: _install_checks
 	echo "✅ Installed: run 'noise-generator' from your launcher or terminal"
 
 uninstall:
-	#!/usr/bin/env bash
-	set -euo pipefail
 	echo "▶ Uninstalling {{project}}"
 	sudo bash -euxo pipefail -c '
 	  rm -f /usr/bin/{{project}}

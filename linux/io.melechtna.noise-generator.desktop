@@ -1,7 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Noise Generator
+Comment=Generates a continuous noise of your choosing
 Exec=noise-generator
-Icon=noise-generator
+Icon=io.melechtna.noise-generator
 Terminal=false
 Categories=Audio;Utility;
