@@ -103,21 +103,6 @@ jobs:
           echo "PKG_CONFIG_SYSROOT_DIR=$SYSROOT" >> $GITHUB_ENV
           echo "LIBRARY_PATH=$SYSROOT/usr/lib:$SYSROOT/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
 
-      - name: Build zlib (arm64) into local sysroot
-        shell: bash
-        run: |
-          set -euxo pipefail
-          SYSROOT="${SYSROOT:-$PWD/sysroot-aarch64}"
-          mkdir -p "$SYSROOT"
-          curl -L https://zlib.net/zlib-1.3.1.tar.gz | tar xzf -
-          cd zlib-1.3.1
-          CHOST=aarch64-linux-gnu CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar RANLIB=aarch64-linux-gnu-ranlib \
-            ./configure --prefix="$SYSROOT/usr"
-          make -j"$(nproc)"
-          make install
-          ls -l "$SYSROOT/usr/lib/libz"* || true
-          echo "SYSROOT=$SYSROOT" >> $GITHUB_ENV
-
       - name: Build expat + freetype + fontconfig (arm64) into sysroot
         shell: bash
         run: |
@@ -135,12 +120,13 @@ jobs:
             make install
           )
 
-          # freetype (use the zlib we just installed; avoid png/harfbuzz/bzip2/brotli)
+          # freetype (no zlib, no png/harfbuzz/bzip2/brotli)
           curl -L https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz | tar xJf -
           (
           cd freetype-2.13.3
         
-          # Make sure pkg-config looks inside your sysroot first
+          make distclean || true
+        
           export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
           export PKG_CONFIG_PATH="$SYSROOT/usr/lib/pkgconfig:$SYSROOT/usr/lib/aarch64-linux-gnu/pkgconfig"
           export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
@@ -149,11 +135,10 @@ jobs:
           CPPFLAGS="-I$SYSROOT/usr/include" \
           LDFLAGS="-L$SYSROOT/usr/lib -L$SYSROOT/usr/lib/aarch64-linux-gnu \
           -Wl,-rpath-link,$SYSROOT/usr/lib -Wl,-rpath-link,$SYSROOT/usr/lib/aarch64-linux-gnu" \
-          LIBS="-lz" \
           ./configure \
           --host=aarch64-linux-gnu \
           --prefix="$SYSROOT/usr" \
-          --with-zlib=yes \
+          --without-zlib \
           --without-png \
           --without-harfbuzz \
           --without-bzip2 \
@@ -161,7 +146,7 @@ jobs:
         
           make -j"$(nproc)"
           make install
-          )  
+          )
 
   # fontconfig (needs expat+freetype from sysroot)
           curl -L https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.14.2.tar.xz | tar xJf -
