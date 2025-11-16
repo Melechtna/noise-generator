@@ -67,15 +67,30 @@ jobs:
         - uses: actions/checkout@v4
 
         # Fix 404s by adding ubuntu-ports arm64 sources
-        - name: Enable arm64 repos (ubuntu-ports) + update
+        - name: Enable multi-arch cleanly (amd64 + arm64) and update
           run: |
             sudo dpkg --add-architecture arm64
-            sudo tee /etc/apt/sources.list.d/arm64.list >/dev/null <<'EOF'
+
+            # Backup & disable the default sources to avoid mixed-arch 404s
+            sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
+            sudo sed -i 's/^\s*deb /# deb /' /etc/apt/sources.list
+
+            # AMD64 mirrors (normal)
+            sudo tee /etc/apt/sources.list.d/ubuntu-amd64.list >/dev/null <<'EOF'
+            deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu noble main restricted universe multiverse
+            deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse
+            deb [arch=amd64] http://security.ubuntu.com/ubuntu noble-security main restricted universe multiverse
+            deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu noble-backports main restricted universe multiverse
+            EOF
+            
+            # ARM64 mirrors (ports)
+            sudo tee /etc/apt/sources.list.d/ubuntu-arm64.list >/dev/null <<'EOF'
             deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
             deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
             deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
             deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse
             EOF
+            
             sudo apt-get update
 
         - name: Install cross toolchain + ARM64 sysroot
@@ -111,7 +126,7 @@ jobs:
             name: noise-generator-linux-arm64
             path: target/artifacts/noise-generator-linux-arm64
             if-no-files-found: error
-    
+
   # =========================
   # Windows (MSVC) x64 / ARM64
   # =========================
