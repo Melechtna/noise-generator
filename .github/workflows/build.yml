@@ -61,29 +61,49 @@ jobs:
           path: target/artifacts/${{ matrix.artifact_name }}
           if-no-files-found: error
 
-  linux-arm64-qemu:
+  linux-arm64-cross:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Build on arm64 via QEMU container
-        uses: uraimo/run-on-arch-action@v2.7.1
-        with:
-          arch: arm64
-          distro: ubuntu24.04
-          githubToken: ${{ github.token }}
-          install: |
-            apt-get update -y
-            apt-get install -y curl build-essential clang ninja-build pkg-config \
-                               libasound2-dev libfreetype6-dev libfontconfig1-dev \
-                               libxkbcommon-dev libwayland-dev libgl1-mesa-dev
-            curl https://sh.rustup.rs -sSf | sh -s -- -y
-            . $HOME/.cargo/env
-            rustup target add aarch64-unknown-linux-gnu
-          run: |
-            . $HOME/.cargo/env
-            cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
-            mkdir -p target/artifacts
-            cp target/aarch64-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-arm64
+
+      - name: Toolchains that RUN on amd64 and TARGET arm64
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            binutils-aarch64-linux-gnu clang ninja-build pkg-config curl bzip2 make autoconf automake libtool
+
+      - name: Build ALSA (arm64) into local sysroot
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SYSROOT="$PWD/sysroot-aarch64"
+          mkdir -p "$SYSROOT"
+          curl -L https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.9.tar.bz2 | tar xjf -
+          cd alsa-lib-1.2.9
+          CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar RANLIB=aarch64-linux-gnu-ranlib \
+          ./configure --host=aarch64-linux-gnu --prefix="$SYSROOT/usr" --disable-alsatest
+          make -j"$(nproc)"
+          make install
+
+          # Export for the Cargo step
+          echo "PKG_CONFIG_PATH=$SYSROOT/usr/lib/pkgconfig:$SYSROOT/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_SYSROOT_DIR=$SYSROOT" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=$SYSROOT/usr/lib:$SYSROOT/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+
+      - name: Build (cross; uses ALSA from sysroot)
+        env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          PKG_CONFIG_ALLOW_CROSS: "1"
+        run: |
+          cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
+          mkdir -p target/artifacts
+          cp target/aarch64-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-arm64
+
       - uses: actions/upload-artifact@v4
         with:
           name: noise-generator-linux-arm64
