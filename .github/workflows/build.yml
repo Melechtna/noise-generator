@@ -135,18 +135,35 @@ jobs:
             make install
           )
 
-          # freetype (use the zlib we just installed; avoid png/harfbuzz)
+          # freetype (use the zlib we just installed; avoid png/harfbuzz/bzip2/brotli)
           curl -L https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz | tar xJf -
-          ( cd freetype-2.13.3
-            CC=aarch64-linux-gnu-gcc \
-            ZLIB_CFLAGS="" ZLIB_LIBS="-L$SYSROOT/usr/lib -lz" \
-            ./configure --host=aarch64-linux-gnu --prefix="$SYSROOT/usr" \
-                        --without-harfbuzz --without-png
-            make -j"$(nproc)"
-            make install
-          )
+          (
+          cd freetype-2.13.3
+        
+          # Make sure pkg-config looks inside your sysroot first
+          export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
+          export PKG_CONFIG_PATH="$SYSROOT/usr/lib/pkgconfig:$SYSROOT/usr/lib/aarch64-linux-gnu/pkgconfig"
+          export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
+        
+          CC=aarch64-linux-gnu-gcc \
+          CPPFLAGS="-I$SYSROOT/usr/include" \
+          LDFLAGS="-L$SYSROOT/usr/lib -L$SYSROOT/usr/lib/aarch64-linux-gnu \
+          -Wl,-rpath-link,$SYSROOT/usr/lib -Wl,-rpath-link,$SYSROOT/usr/lib/aarch64-linux-gnu" \
+          LIBS="-lz" \
+          ./configure \
+          --host=aarch64-linux-gnu \
+          --prefix="$SYSROOT/usr" \
+          --with-zlib=yes \
+          --without-png \
+          --without-harfbuzz \
+          --without-bzip2 \
+          --without-brotli
+        
+          make -j"$(nproc)"
+          make install
+          )  
 
-          # fontconfig (needs expat+freetype from sysroot)
+  # fontconfig (needs expat+freetype from sysroot)
           curl -L https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.14.2.tar.xz | tar xJf -
           ( cd fontconfig-2.14.2
             CC=aarch64-linux-gnu-gcc \
