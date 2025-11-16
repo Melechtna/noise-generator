@@ -26,7 +26,7 @@ Grab prebuilt binaries from **GitHub Releases**:
 
 - **MacOS**: Universal (Intel + Apple Silicon)
 
-- **Linux**: x64, ARM64, RiscV
+- **Linux**: x64, ARM64, RiscV (likely needs local compile)
 
 - **Android**: Debug APK (you're welcome to pay for a key to sign a release build)
 

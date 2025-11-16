@@ -2,9 +2,11 @@ fn main() {
     // compile Slint
     slint_build::compile("src/ui/ui.slint").unwrap();
 
-    // embed Windows icon
+    // Windows-only: embed icon via winres
     #[cfg(target_os = "windows")]
     {
-        embed_resource::compile("src/ui/icons/icon.rc");
+        let mut res = winres::WindowsResource::new();
+        res.set_icon("src/ui/icons/icon.ico");
+        res.compile().unwrap();
     }
 }

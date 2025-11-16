@@ -15,10 +15,11 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-C debuginfo=1"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   # =========================
-  # Linux x64 / aarch64 / riscv64
+  # Linux x64 / aarch64
   # =========================
   linux:
     strategy:
@@ -30,57 +31,32 @@ jobs:
           - runner: ubuntu-24.04-arm64
             target: aarch64-unknown-linux-gnu
             artifact_name: noise-generator-linux-arm64
-          - runner: ubuntu-24.04 # Standard host; emulation handles the arch
-            target: riscv64gc-unknown-linux-gnu
-            artifact_name: noise-generator-linux-riscv64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build deps (Skia fallback)
-        if: matrix.target != 'riscv64gc-unknown-linux-gnu' # Native only; emulated job skips
+      - name: Install build deps (Skia + winit)
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang ninja-build libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev
+          sudo apt-get install -y \
+            clang ninja-build pkg-config \
+            libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2 # Keys off target; works in/out of container
+      - uses: Swatinem/rust-cache@v2
 
-      - name: Build (native)
-        if: matrix.target != 'riscv64gc-unknown-linux-gnu'
+      - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Build on riscv64 (QEMU emulation)
-        if: matrix.target == 'riscv64gc-unknown-linux-gnu'
-        id: build
-        uses: uraimo/run-on-arch-action@v0
-        with:
-          arch: riscv64
-          distro: ubuntu24.04
-          githubToken: ${{ github.token }} # Caches QEMU layers
-          install: | # Emulated env setup (mirrors native deps)
-            apt-get update -q -y
-            apt-get install -q -y curl build-essential clang ninja-build libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev pkg-config
-            curl https://sh.rustup.rs -sSf | sh -s -- -y
-            source $HOME/.cargo/env
-            rustup target add riscv64gc-unknown-linux-gnu
-          run: | # Build + collect inside container
-            cargo build --release --target riscv64gc-unknown-linux-gnu
-            mkdir -p target/artifacts
-            cp target/riscv64gc-unknown-linux-gnu/release/noise-generator target/artifacts/${{ matrix.artifact_name }}
-            file target/artifacts/${{ matrix.artifact_name }}  # Quick verify
-
-      - name: Collect artifact (native)
-        if: matrix.target != 'riscv64gc-unknown-linux-gnu'
+      - name: Collect artifact
         run: |
           mkdir -p target/artifacts
           cp target/${{ matrix.target }}/release/noise-generator target/artifacts/${{ matrix.artifact_name }}
 
       - uses: actions/upload-artifact@v4
-        if: always() # Upload even on emulation flake
         with:
           name: ${{ matrix.artifact_name }}
           path: target/artifacts/${{ matrix.artifact_name }}
@@ -107,7 +83,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Ensure Ninja
+      - name: Ensure Ninja (for Skia full builds if needed)
         run: choco install ninja -y
 
       - name: Build
@@ -135,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure Ninja (Skia fallback) and file utils
+      - name: Ensure Ninja
         run: brew install ninja
 
       - uses: dtolnay/rust-toolchain@stable
@@ -165,22 +141,22 @@ jobs:
           if-no-files-found: error
 
   # =========================
-  #         Android
+  # Android (debug APK via your scripts)
   # =========================
   android:
     runs-on: ubuntu-24.04
     env:
-      NDK_VERSION: "26.3.11579264"
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ImageMagick (for icon generation)
+      - name: ImageMagick for icon generation
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
       - uses: dtolnay/rust-toolchain@stable
-
       - uses: Swatinem/rust-cache@v2
 
       - name: Set up Java 17
@@ -192,20 +168,19 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install NDK
+      - name: Install NDK (r26d)
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: ${{ env.NDK_VERSION }}
+          ndk-version: r26d
+          add-to-path: true
 
-      - name: Install Android platforms & build-tools
+      - name: Install platforms & build-tools and alias to 36.1
         shell: bash
         run: |
           yes | sdkmanager --licenses
           sdkmanager "platforms;android-30"
-          # Install the latest build-tools we have, and symlink to 36.1 your script expects:
           LATEST=$(sdkmanager --list | sed -n 's/.*build-tools;\([0-9.]\+\).*/\1/p' | sort -Vr | head -n1)
           sdkmanager "build-tools;${LATEST}"
-          mkdir -p "$ANDROID_HOME/build-tools"
           if [ ! -d "$ANDROID_HOME/build-tools/36.1" ]; then
             ln -s "$ANDROID_HOME/build-tools/${LATEST}" "$ANDROID_HOME/build-tools/36.1"
           fi
@@ -218,7 +193,7 @@ jobs:
           rustup target add aarch64-linux-android
           cargo apk build --lib --target aarch64-linux-android
 
-      - name: Generate Android icons (your script)
+      - name: Generate Android icons
         run: bash scripts/android-cheat-icons.sh
 
       - name: Produce debug APK via cheat script

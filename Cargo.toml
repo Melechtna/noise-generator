@@ -43,7 +43,7 @@ directories = "6.0.0"
 slint = { version = "1.14.1", default-features = false, features = [
   "compat-1-2",
   "backend-winit",
-  "renderer-skia",        # works on MSVC runners (prebuilts / VS available)
+  "renderer-skia",
 ] }
 
 # ---------- macOS ----------
@@ -68,7 +68,7 @@ android_logger = "0.15.1"
 
 [build-dependencies]
 slint-build = "1.14.1"
-embed-resource = "3.0.6"
+winres = "0.1.12"
 
 [package.metadata.bundle]
 name = "Noise Generator"
