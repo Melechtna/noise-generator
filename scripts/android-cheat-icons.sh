@@ -25,11 +25,11 @@ mkdir -p \
 gen_set() {
   local size="$1" dir="$2"
   # main legacy icon
-  magick "$ICON" -resize "${size}x${size}" "$OUT/$dir/ic_launcher.png"
+  convert "$ICON" -resize "${size}x${size}" "$OUT/$dir/ic_launcher.png"
   # round icon
-  magick "$ICON" -resize "${size}x${size}" "$OUT/$dir/ic_launcher_round.png"
+  convert "$ICON" -resize "${size}x${size}" "$OUT/$dir/ic_launcher_round.png"
   # foreground
-  magick "$ICON" -resize "${size}x${size}" "$OUT/$dir/ic_launcher_foreground.png"
+  convert "$ICON" -resize "${size}x${size}" "$OUT/$dir/ic_launcher_foreground.png"
 }
 
 gen_set 48  mipmap-mdpi
