@@ -65,21 +65,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      # Fix 404s by adding ubuntu-ports arm64 sources
+        
       - name: Sanitize APT sources for multiarch (amd64 + arm64)
         shell: bash
         run: |
           set -euxo pipefail
           sudo dpkg --add-architecture arm64
-
-          # Disable ALL default sources (legacy .list and deb822 .sources)
           sudo mkdir -p /etc/apt/disabled-sources
           for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
             [ -e "$f" ] && sudo mv "$f" "/etc/apt/disabled-sources/$(basename "$f").bak" || true
           done
-
-          # amd64 from normal mirrors
           sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
           Types: deb
           URIs: http://azure.archive.ubuntu.com/ubuntu
@@ -96,8 +91,6 @@ jobs:
           Architectures: amd64
           Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
           EOF
-
-          # arm64 only from ports
           sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources >/dev/null <<'EOF'
           Types: deb
           URIs: http://ports.ubuntu.com/ubuntu-ports
@@ -106,20 +99,25 @@ jobs:
           Architectures: arm64
           Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
           EOF
-
           sudo apt-get -o Acquire::Retries=5 update
 
       - name: Install cross toolchain + ARM64 sysroot
         run: |
+          # Cross toolchains (run on amd64, target aarch64)
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            clang ninja-build pkg-config
+
+          # ARM64 target headers/libs for linking
+          sudo apt-get install -y --no-install-recommends \
+            libc6-dev:arm64 linux-libc-dev:arm64 zlib1g-dev:arm64 \
             libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
-            libxkbcommon-dev:arm64 libwayland-dev:arm64 libgl1-mesa-dev:arm64 \
-            libx11-dev:arm64 libxcb1-dev:arm64 libxcb-render0-dev:arm64 \
-            libxcb-shape0-dev:arm64 libxcb-xfixes0-dev:arm64 zlib1g-dev:arm64 \
-            clang ninja-build
-          # If you later hit C++ link errors, add:
-          # sudo apt-get install -y libstdc++-13-dev:arm64
+            libx11-dev:arm64 libxkbcommon-dev:arm64 libxcb1-dev:arm64 \
+            libxcb-render0-dev:arm64 libxcb-shape0-dev:arm64 libxcb-xfixes0-dev:arm64 \
+            libwayland-dev:arm64 libgl1-mesa-dev:arm64
+
+          # If you later hit -lstdc++ link errors for target, uncomment:
+          # sudo apt-get install -y --no-install-recommends libstdc++-13-dev:arm64
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -130,12 +128,14 @@ jobs:
         env:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
+          RANLIB_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ranlib
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           PKG_CONFIG_ALLOW_CROSS: "1"
           PKG_CONFIG_DIR: ""
+          PKG_CONFIG_SYSROOT_DIR: /
           PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
           PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-          PKG_CONFIG_SYSROOT_DIR: /
         run: |
           cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
           mkdir -p target/artifacts
