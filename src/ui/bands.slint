@@ -1,0 +1,196 @@
+import { ToggleSwitch } from "toggleswitch.slint";
+import { AccentSlider } from "accentslider.slint";
+import { NumberField }  from "numberfield.slint";
+import { Section }      from "section.slint";
+
+export component BandSection inherits Section {
+    // visuals / label
+    in property <string> band_name: "Band";
+    in property <length> font_title: 20px;
+    in property <length> font_label: 16px;
+
+    // state
+    in-out property <bool>  enabled: true;
+    in-out property <float> band_volume: 1.0;
+
+    in-out property <float> lo: 10.0;
+    in-out property <float> hi: 1000.0;
+
+    // ABSOLUTE bounds (fixed per band)
+    in property <float> lo_min: 1.0;
+    in property <float> lo_max: 1000.0;
+    in property <float> hi_min: 1.0;
+    in property <float> hi_max: 1000.0;
+
+    // bubble up
+    callback config_changed();
+
+    // text commit callbacks forwarded to SettingsMenu
+    callback lo_text_committed(string);
+    callback hi_text_committed(string);
+    callback gain_text_committed(string);
+
+    // proxy for edit state
+    edit_proxy := Rectangle {
+        property <bool> lo_edit:   false;
+        property <bool> hi_edit:   false;
+        property <bool> gain_edit: false;
+    }
+
+    // parent can read this
+    out property <bool> is_editing:
+        enabled ? (edit_proxy.lo_edit || edit_proxy.hi_edit || edit_proxy.gain_edit) : false;
+
+    title: band_name;
+    title_size: font_title;
+
+    content := VerticalLayout {
+        padding: 8px;
+        spacing: 12px;
+
+        // Fixed toggle row
+        HorizontalLayout {
+            spacing: 8px;
+
+            ToggleSwitch {
+                checked <=> root.enabled;
+                accent: root.accent;
+                toggled => {
+                    root.config_changed();
+                    if (!self.checked) {
+                        // clear edit state when disabling
+                        edit_proxy.lo_edit = false;
+                        edit_proxy.hi_edit = false;
+                        edit_proxy.gain_edit = false;
+                    }
+                }
+            }
+
+            Text {
+                text: root.band_name;
+                color: root.accent;
+                font-size: root.font_label;
+                vertical-alignment: center;
+            }
+        }
+
+        // Collapsible inner controls
+        if (enabled) : VerticalLayout {
+            spacing: 8px;
+
+            // Aggregate editing state into the proxy while this block exists
+            Timer {
+                running: true;
+                interval: 40ms;
+                triggered => {
+                    edit_proxy.gain_edit = nf_gain.is_editing;
+                    edit_proxy.lo_edit   = nf_lo.is_editing;
+                    edit_proxy.hi_edit   = nf_hi.is_editing;
+                }
+            }
+
+            // Per-band volume
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text { text: "Vol"; color: root.accent; vertical-alignment: center; }
+
+                AccentSlider {
+                    horizontal-stretch: 1;
+                    value        <=> root.band_volume;
+                    minimum      : 0.0;
+                    maximum      : 10.0;
+                    accent       : root.accent;
+                    thickness    : 3px;
+                    knob_inset   : 6px;
+                    track_height : 8px; top_gap: 2px; bottom_gap: 6px;
+                    changed => root.config_changed();
+                }
+
+                nf_gain := NumberField {
+                    width: 72px;
+                    value  <=> root.band_volume;
+                    minimum : 0.0; maximum : 10.0;
+                    decimals: 2;  display_multiplier: 1.0;
+                    accent: root.accent; thickness: 3px; corner: 8px;
+                    commit(t) => { root.gain_text_committed(t); }
+                }
+            }
+
+            // Low endpoint
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text { text: band_name + " L"; color: root.accent; vertical-alignment: center; }
+
+                AccentSlider {
+                    horizontal-stretch: 1;
+                    minimum: root.lo_min;
+                    maximum: root.lo_max;
+                    value   <=> root.lo;
+                    accent: root.accent;
+                    thickness: 3px;
+                    knob_inset: 8px;
+                    track_height: 8px; top_gap: 2px; bottom_gap: 6px;
+
+                    changed => {
+                        if (root.lo > root.hi) { root.hi = root.lo; }
+                        root.config_changed();
+                    }
+                }
+
+                nf_lo := NumberField {
+                    width: 72px;
+                    value <=> root.lo;
+                    minimum: root.lo_min; maximum: root.lo_max;
+                    decimals: 1; display_multiplier: 1.0;
+                    accent: root.accent; thickness: 3px; corner: 8px;
+                    commit(t) => {
+                        if (root.lo > root.hi) { root.hi = root.lo; }
+                        root.lo_text_committed(t);
+                        root.config_changed();
+                    }
+                }
+            }
+
+            // High endpoint
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text { text: band_name + " H"; color: root.accent; vertical-alignment: center; }
+
+                AccentSlider {
+                    horizontal-stretch: 1;
+                    minimum: root.hi_min;
+                    maximum: root.hi_max;
+                    value   <=> root.hi;
+                    accent: root.accent;
+                    thickness: 3px;
+                    knob_inset: 8px;
+                    track_height: 8px; top_gap: 2px; bottom_gap: 6px;
+
+                    changed => {
+                        if (root.hi < root.lo) { root.lo = root.hi; }
+                        root.config_changed();
+                    }
+                }
+
+                nf_hi := NumberField {
+                    width: 72px;
+                    value <=> root.hi;
+                    minimum: root.hi_min; maximum: root.hi_max;
+                    decimals: 1; display_multiplier: 1.0;
+                    accent: root.accent; thickness: 3px; corner: 8px;
+                    commit(t) => {
+                        if (root.hi < root.lo) { root.lo = root.hi; }
+                        root.hi_text_committed(t);
+                        root.config_changed();
+                    }
+                }
+            }
+        }
+
+        // Bottom flex spacer pins everything above to the top
+        Rectangle { vertical-stretch: 1; background: #000000; opacity: 0%; }
+    }
+}

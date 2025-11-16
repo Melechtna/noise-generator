@@ -1,0 +1,22 @@
+export component Section inherits VerticalLayout {
+    in property <string> title: "";
+    in property <color>  accent: #663366;
+    in property <length> title_size: 20px;
+    in property <length> gap: 8px;
+
+    spacing: gap;
+
+    Text {
+        text: root.title;
+        color: root.accent;
+        font-size: root.title_size;
+        font-weight: 600;
+        height: root.title_size;
+        vertical-alignment: bottom;
+    }
+
+    content := VerticalLayout {
+        spacing: 0px;
+        @children
+    }
+}

@@ -1,0 +1,91 @@
+import { Button } from "std-widgets.slint";
+
+export component MainMenu inherits Rectangle {
+    background: #000000;
+
+    in property <length> viewport_min: 320px;
+    in-out property <bool> playing: true;
+    callback open_settings();
+    callback toggle_play();
+
+    in property <image> icon_settings: @image-url("icons/settings.svg");
+    in property <image> icon_play:     @image-url("icons/player-play.svg");
+    in property <image> icon_pause:    @image-url("icons/player-pause.svg");
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 12px;
+
+        // Top bar
+        HorizontalLayout {
+            spacing: 8px;
+
+            Rectangle { horizontal-stretch: 1; height: 40px; background: #000000; }
+
+            Rectangle {
+                width: 40px; height: 40px;
+                border-radius: 20px;
+                background: #000000;
+                border-color: #663366;
+                border-width: 3px;
+
+                Image {
+                    source: icon_settings;
+                    colorize: #663366;
+                    width: parent.width * 0.6;
+                    height: parent.height * 0.6;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                TouchArea { clicked => open_settings(); }
+            }
+        }
+
+        // Center area with responsive circle
+        VerticalLayout {
+            spacing: 0;
+            horizontal-stretch: 1;
+            vertical-stretch: 1;
+
+            Rectangle { vertical-stretch: 1; background: #000000; }
+
+            HorizontalLayout {
+                spacing: 0;
+
+                Rectangle { horizontal-stretch: 1; height: 1px; background: #000000; }
+
+                // Name the circle element (no `id:`)
+                circle := Rectangle {
+                    preferred-width: viewport_min * 0.22;
+                    width: self.preferred-width;
+                    height: self.width;
+
+                    border-radius: self.height / 2;
+                    background: #000000;
+                    border-color: #663366;
+                    border-width: 5px;
+
+                    Image {
+                        source: playing ? icon_pause : icon_play;
+                        colorize: #663366;
+                        width: parent.width * 0.6;
+                        height: parent.height * 0.6;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            toggle_play();
+                        }
+                    }
+                }
+
+                Rectangle { horizontal-stretch: 1; height: 1px; background: #000000; }
+            }
+
+            Rectangle { vertical-stretch: 1; background: #000000; }
+        }
+    }
+}

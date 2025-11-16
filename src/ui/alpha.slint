@@ -1,0 +1,49 @@
+import { Section } from "section.slint";
+import { AccentSlider } from "accentslider.slint";
+import { NumberField } from "numberfield.slint";
+
+export component AlphaSection inherits Section {
+    in-out property <float> alpha: 0.996;
+    in property <length> font_title: 20px;
+
+    callback config_changed();
+    // let SettingsMenu route text to Rust
+    callback alpha_text_committed(string);
+
+    // expose editing state
+    out property <bool> is_editing: nf.is_editing;
+
+    title: "Alpha";
+    title_size: font_title;
+
+    content := HorizontalLayout {
+        spacing: 8px;
+
+        AccentSlider {
+            horizontal-stretch: 1;
+            value        <=> root.alpha;
+            minimum      : 0.900;
+            maximum      : 0.9999;
+            accent       : root.accent;
+            thickness    : 3px;
+            knob_inset   : 8px;
+            track_height : 10px;
+            top_gap      : 4px;
+            bottom_gap   : 8px;
+            changed => root.config_changed();
+        }
+
+        nf := NumberField {
+            width: 88px;
+            value  <=> root.alpha;
+            minimum: 0.900;
+            maximum: 0.9999;
+            decimals: 4;
+            display_multiplier: 1.0;
+            accent: root.accent;
+            thickness: 3px;
+            corner: 8px;
+            commit(t) => { root.alpha_text_committed(t); }
+        }
+    }
+}

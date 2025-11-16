@@ -1,0 +1,228 @@
+name: CI Builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C debuginfo=1"
+
+jobs:
+  # =========================
+  # Linux x64 / aarch64
+  # =========================
+  linux:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            artifact_name: noise-generator-linux-x64
+          - runner: ubuntu-24.04-arm64
+            target: aarch64-unknown-linux-gnu
+            artifact_name: noise-generator-linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps (Skia fallback)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang ninja-build libxkbcommon-dev libwayland-dev libgl1-mesa-dev libasound2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Collect artifact
+        run: |
+          mkdir -p target/artifacts
+          cp target/${{ matrix.target }}/release/noise-generator target/artifacts/${{ matrix.artifact_name }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: target/artifacts/${{ matrix.artifact_name }}
+          if-no-files-found: error
+
+  # =========================
+  # Windows (MSVC) x64 / ARM64
+  # =========================
+  windows:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            artifact_name: noise-generator-windows-x64.exe
+          - target: aarch64-pc-windows-msvc
+            artifact_name: noise-generator-windows-arm64.exe
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Ensure Ninja
+        run: choco install ninja -y
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Collect artifact
+        shell: bash
+        run: |
+          mkdir -p target/artifacts
+          cp "target/${{ matrix.target }}/release/noise-generator.exe" "target/artifacts/${{ matrix.artifact_name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: target/artifacts/${{ matrix.artifact_name }}
+          if-no-files-found: error
+
+  # =========================
+  # macOS universal (x64+arm64)
+  # =========================
+  macos-universal:
+    runs-on: macos-14
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure Ninja (Skia fallback) and file utils
+        run: brew install ninja
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build (arm64)
+        run: cargo build --release --target aarch64-apple-darwin
+      - name: Build (x86_64)
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Create universal binary
+        run: |
+          mkdir -p target/universal
+          lipo -create \
+            target/aarch64-apple-darwin/release/noise-generator \
+            target/x86_64-apple-darwin/release/noise-generator \
+            -output target/universal/noise-generator
+          file target/universal/noise-generator
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noise-generator-macos-universal
+          path: target/universal/noise-generator
+          if-no-files-found: error
+
+  # =========================
+  #         Android
+  # =========================
+  android:
+    runs-on: ubuntu-24.04
+    env:
+      NDK_VERSION: "26.3.11579264"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ImageMagick (for icon generation)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+
+      - name: Install Android platforms & build-tools
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-30"
+          # Install the latest build-tools we have, and symlink to 36.1 your script expects:
+          LATEST=$(sdkmanager --list | sed -n 's/.*build-tools;\([0-9.]\+\).*/\1/p' | sort -Vr | head -n1)
+          sdkmanager "build-tools;${LATEST}"
+          mkdir -p "$ANDROID_HOME/build-tools"
+          if [ ! -d "$ANDROID_HOME/build-tools/36.1" ]; then
+            ln -s "$ANDROID_HOME/build-tools/${LATEST}" "$ANDROID_HOME/build-tools/36.1"
+          fi
+
+      - name: Install cargo-apk
+        run: cargo install cargo-apk --locked
+
+      - name: Build native lib (cargo-apk)
+        run: |
+          rustup target add aarch64-linux-android
+          cargo apk build --lib --target aarch64-linux-android
+
+      - name: Generate Android icons (your script)
+        run: bash scripts/android-cheat-icons.sh
+
+      - name: Produce debug APK via cheat script
+        run: bash scripts/android-cheat.sh target/artifacts/noise-generator-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noise-generator-android-debug-apk
+          path: target/artifacts/noise-generator-debug.apk
+          if-no-files-found: error
+
+riscv64:
+  runs-on: ubuntu-24.04-riscv64
+  steps:
+    - uses: actions/checkout@v4
+    - name: Install deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: riscv64gc-unknown-linux-gnu
+    - uses: Swatinem/rust-cache@v2
+    - name: Build (software renderer)
+      run: cargo build --release --target riscv64gc-unknown-linux-gnu
+    - name: Collect
+      run: |
+        mkdir -p target/artifacts
+        cp target/riscv64gc-unknown-linux-gnu/release/noise-generator target/artifacts/noise-generator-linux-riscv64
+    - uses: actions/upload-artifact@v4
+      with:
+        name: noise-generator-linux-riscv64
+        path: target/artifacts/noise-generator-linux-riscv64
+        if-no-files-found: error

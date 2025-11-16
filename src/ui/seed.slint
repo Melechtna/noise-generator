@@ -1,0 +1,57 @@
+import { ToggleSwitch } from "toggleswitch.slint";
+import { NumberField } from "numberfield.slint";
+import { Section } from "section.slint";
+
+export component SeedSection inherits Section {
+    in property <length> font_title: 20px;
+    in property <length> font_label: 16px;
+
+    in-out property <bool>  random_seed: false;
+    in-out property <float> seed: 0.0;
+
+    callback config_changed();
+    callback seed_text_committed(string);
+
+    // expose editing state (the field is disabled/hidden when random)
+    out property <bool> is_editing: nf.is_editing;
+
+    title: "Seed";
+    title_size: font_title;
+
+    content := HorizontalLayout {
+        spacing: 8px;
+
+        ToggleSwitch {
+            checked <=> random_seed;
+            accent: root.accent;
+            toggled => root.config_changed();
+        }
+
+        Text {
+            text: "Random Seed";
+            color: root.accent;
+            font-size: root.font_label;
+            vertical-alignment: center;
+        }
+
+        Rectangle { horizontal-stretch: 1; background: #000000; }
+
+        // Always instantiate the NumberField so we can surface is_editing,
+        // but hide/disable it while random_seed is true.
+        nf := NumberField {
+            width: 100px;
+            value  <=> root.seed;
+            minimum : 0.0;
+            maximum : 65535.0;
+            decimals: 0;
+            display_multiplier: 1.0;
+            accent: root.accent;
+            thickness: 3px;
+            corner: 8px;
+
+            visible: !root.random_seed;
+
+            commit(t) => { root.seed_text_committed(t); root.config_changed(); }
+        }
+    }
+}

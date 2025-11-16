@@ -1,0 +1,40 @@
+export component ToggleSwitch inherits Rectangle {
+    in-out property <bool> checked: false;
+    callback toggled();
+
+    // Theme
+    in property <color> accent: #663366;
+    in property <length> thickness: 2px;
+    in property <length> knob_inset: 3px;
+
+    // Size
+    width: 48px;
+    height: 28px;
+    border-width: thickness;
+    border-color: accent;
+    border-radius: self.height / 2;
+    background: checked ? accent.with-alpha(0.25) : #000000;
+
+    knob := Rectangle {
+        width: parent.height - (knob_inset * 2);
+        height: parent.height - (knob_inset * 2);
+        y: knob_inset;
+        x: checked
+            ? parent.width - self.width - parent.knob_inset
+            : parent.knob_inset;
+
+        border-width: parent.thickness;
+        border-color: parent.accent;
+        border-radius: self.height / 2;
+        background: #000000;
+
+        animate x { duration: 120ms; easing: ease-in-out; }
+    }
+
+    TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled();
+        }
+    }
+}

@@ -1,0 +1,98 @@
+import { MainMenu } from "main.slint";
+import { SettingsMenu } from "settings.slint";
+
+export component RootUI inherits Window {
+    title: "Noise Generator";
+
+    // existing top-level app state
+    in-out property <float> volume: 0.5;
+    in-out property <float> alpha: 0.996;
+    in-out property <bool>  enable_low: true;
+    in-out property <bool>  enable_mid: true;
+    in-out property <bool>  enable_high: true;
+    in-out property <bool>  random_seed: false;
+    in-out property <float> bass_boost: 0.0;
+    in-out property <float> seed: 0.0;
+
+    // per-band volumes
+    in-out property <float> band_volume_low:  1.0;
+    in-out property <float> band_volume_mid:  0.5;
+    in-out property <float> band_volume_high: 0.2;
+
+    // band endpoints (Hz)
+    in-out property <float> band_low_lo:   10.0;
+    in-out property <float> band_low_hi:   500.0;
+    in-out property <float> band_mid_lo:   60.0;
+    in-out property <float> band_mid_hi:   1000.0;
+    in-out property <float> band_high_lo:  100.0;
+    in-out property <float> band_high_hi:  10000.0;
+
+    // view state
+    in-out property <bool> internal_playing: true;
+    in-out property <bool> show_main: true;
+    in-out property <bool> show_settings: false;
+
+    callback config_changed();
+    callback toggle_play();
+    callback volume_text_committed(string);
+    callback number_text_committed(string, string);
+
+    MainMenu {
+        visible: show_main;
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+
+        viewport_min: min(parent.width, parent.height);
+        playing <=> root.internal_playing;
+
+        toggle_play => {
+            root.internal_playing = !root.internal_playing;
+            root.toggle_play();
+        }
+
+        open_settings => {
+            root.show_main = false;
+            root.show_settings = true;
+        }
+    }
+
+    SettingsMenu {
+            visible: show_settings;
+            x: 0; y: 0;
+            width: parent.width;
+            height: parent.height;
+
+            // master state
+            volume      <=> root.volume;
+            enable_low  <=> root.enable_low;
+            enable_mid  <=> root.enable_mid;
+            enable_high <=> root.enable_high;
+            random_seed <=> root.random_seed;
+            seed        <=> root.seed;
+
+            alpha       <=> root.alpha;
+            bass_boost  <=> root.bass_boost;
+
+            // per-band volumes/endpoints
+            band_volume_low  <=> root.band_volume_low;
+            band_volume_mid  <=> root.band_volume_mid;
+            band_volume_high <=> root.band_volume_high;
+
+            band_low_lo   <=> root.band_low_lo;
+            band_low_hi   <=> root.band_low_hi;
+            band_mid_lo   <=> root.band_mid_lo;
+            band_mid_hi   <=> root.band_mid_hi;
+            band_high_lo  <=> root.band_high_lo;
+            band_high_hi  <=> root.band_high_hi;
+
+            volume_text_committed(text) => { root.volume_text_committed(text); }
+            number_text_committed(name, text) => { root.number_text_committed(name, text); }
+            config_changed => root.config_changed();
+
+            go_back => {
+                root.show_settings = false;
+                root.show_main = true;
+            }
+        }
+}

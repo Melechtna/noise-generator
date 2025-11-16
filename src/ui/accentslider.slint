@@ -1,0 +1,91 @@
+export component AccentSlider inherits Rectangle {
+    // API
+    in-out property <float> value: 0.5;
+    in property <float> minimum: 0.0;
+    in property <float> maximum: 1.0;
+    callback changed();
+
+    // Theme
+    in property <color>  accent: #663366;
+    in property <length> thickness: 3px;
+    in property <length> knob_inset: 4px;
+    in property <length> knob_size: 18px;
+
+    // Layout knobs
+    in property <length> track_height: 10px;  // visible bar height
+    in property <length> top_gap: 2px;        // space above track
+    in property <length> bottom_gap: 2px;     // space below track
+
+    // Derived
+    property <float> range: maximum - minimum;
+    property <float> safe_range: max(0.000001, range);
+    property <float> frac: max(0.0, min(1.0, (value - minimum) / safe_range));
+
+    // Root sizing = exact top/bottom gaps + track height
+    height: top_gap + track_height + bottom_gap;
+
+    // Track pinned near the top
+    track := Rectangle {
+        x: 0;
+        y: parent.top_gap;
+        width: parent.width;
+        height: parent.track_height;
+
+        border-width: parent.thickness;
+        border-color: parent.accent;
+        border-radius: self.height / 2;
+        background: #000000;
+    }
+
+    // Fill to knob
+    fill := Rectangle {
+        x: track.x;
+        y: track.y;
+        width: track.width * parent.frac;
+        height: track.height;
+
+        border-width: parent.thickness;
+        border-color: parent.accent;
+        border-radius: track.border-radius;
+        background: parent.accent.with-alpha(0.25);
+    }
+
+    // Knob
+    knob := Rectangle {
+        width:  parent.knob_size;
+        height: parent.knob_size;
+
+        // center vertically on the (now top-pinned) track
+        y: track.y + (track.height - self.height) / 2;
+
+        // center horizontally at the fill end, clamped inside the track
+        x: {
+            let cx = track.x + (parent.frac * track.width) - (self.width / 2);
+            max(track.x + parent.knob_inset,
+                min(track.x + track.width - parent.knob_inset - self.width, cx))
+        }
+
+        border-width: parent.thickness;
+        border-color: parent.accent;
+        border-radius: self.height / 2;
+        background: #000000;
+
+    }
+
+    // Pointer handling
+    TouchArea {
+        function apply_from_x(xpos: length) {
+            let rel = xpos - track.x;
+            let rel_clamped = max(0px, min(track.width, rel));
+            if (track.width <= 0px) { return; }
+            let tloc = rel_clamped / track.width;
+            let newv = minimum + tloc * (maximum - minimum);
+            if (newv != value) {
+                value = newv;
+                root.changed();
+            }
+        }
+        clicked => { self.apply_from_x(self.mouse-x); }
+        moved   => { if (self.pressed) { self.apply_from_x(self.mouse-x); } }
+    }
+}

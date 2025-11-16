@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.melechtna.noise-generator</id>
+  <name>Noise Generator</name>
+  <summary>A noise generation system for any kind of calming noise</summary>
+  <icon type="stock">io.melechtna.noise-generator</icon>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <launchable type="desktop-id">io.melechtna.noise-generator.desktop</launchable>
+</component>

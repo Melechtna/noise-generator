@@ -1,0 +1,49 @@
+import { AccentSlider } from "accentslider.slint";
+import { NumberField } from "numberfield.slint";
+import { Section } from "section.slint";
+
+export component VolumeSection inherits Section {
+    // inputs
+    in-out property <float> volume: 0.5;
+    in property <length> font_title: 20px;
+
+    // bubble up when changed
+    callback config_changed();
+    callback volume_text_committed(string);
+
+    // expose editing state to parent (SettingsMenu.any_field_editing)
+    out property <bool> is_editing: nf.is_editing;
+
+    title: "Volume";
+    title_size: font_title;
+
+    content := HorizontalLayout {
+        spacing: 8px;
+
+        AccentSlider {
+            horizontal-stretch: 1;
+            value        <=> root.volume;
+            minimum      : 0.0;
+            maximum      : 1.0;
+            accent       : root.accent;
+            thickness    : 3px;
+            knob_inset   : 8px;
+            track_height : 10px;
+            top_gap      : 4px;
+            bottom_gap   : 8px;
+            changed => root.config_changed();
+        }
+
+        nf := NumberField {
+            value               <=> root.volume;
+            minimum              : 0.0;
+            maximum              : 1.0;
+            decimals             : 0;
+            display_multiplier   : 100;
+            accent               : root.accent;
+            thickness            : 3px;
+            corner               : 8px;
+            commit(text) => { root.volume_text_committed(text); }
+        }
+    }
+}

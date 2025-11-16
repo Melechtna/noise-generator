@@ -1,0 +1,84 @@
+[package]
+name = "noise-generator"
+version = "1.0.0"
+edition = "2024"
+
+[lib]
+name = "noise_generator"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "noise-generator"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.100"
+notify = "8.2"
+rand = "0.10.0-rc.5"
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "0.9.8"
+tinyaudio = "1.1.0"
+log = "0.4.28"
+
+# ---------- Linux ----------
+[target.'cfg(target_os = "linux")'.dependencies]
+directories = "6.0.0"
+slint = { version = "1.14.1", default-features = false, features = [
+  "compat-1-2",
+  "backend-winit",
+  "renderer-skia",
+] }
+
+[target.'cfg(all(target_os = "linux", target_arch = "riscv64"))'.dependencies]
+slint = { version = "1.14.1", default-features = false, features = [
+    "compat-1-2",
+    "backend-winit",
+    "renderer-software"
+] }
+
+# ---------- Windows (MSVC) ----------
+[target.'cfg(target_os = "windows")'.dependencies]
+directories = "6.0.0"
+slint = { version = "1.14.1", default-features = false, features = [
+  "compat-1-2",
+  "backend-winit",
+  "renderer-skia",        # works on MSVC runners (prebuilts / VS available)
+] }
+
+# ---------- macOS ----------
+[target.'cfg(target_os = "macos")'.dependencies]
+directories = "6.0.0"
+slint = { version = "1.14.1", default-features = false, features = [
+  "compat-1-2",
+  "backend-winit",
+  "renderer-skia",
+] }
+
+# ---------- Android ----------
+[target.'cfg(target_os = "android")'.dependencies]
+slint = { version = "1.14.1", default-features = false, features = [
+  "compat-1-2",
+  "renderer-skia",
+  "backend-android-activity-06",
+] }
+ndk-context = "0.1.1"
+android-activity = { version = "0.6", features = ["native-activity"] }
+android_logger = "0.15.1"
+
+[build-dependencies]
+slint-build = "1.14.1"
+embed-resource = "3.0.6"
+
+[package.metadata.bundle]
+name = "Noise Generator"
+identifier = "io.melechtna.noisegenerator"
+icon = ["src/ui/icons/icon.icns"]
+
+[package.metadata.android]
+package      = "io.melechtna.noisegenerator"
+apk_name     = "Noise Generator"
+
+[package.metadata.android.sdk]
+min_sdk_version    = 26
+target_sdk_version = 30

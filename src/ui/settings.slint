@@ -1,0 +1,245 @@
+import { Section } from "section.slint";
+import { VolumeSection } from "volume.slint";
+import { BandSection }   from "bands.slint";
+import { SeedSection }   from "seed.slint";
+import { AlphaSection }  from "alpha.slint";
+import { BassBoostSection } from "bassboost.slint";
+
+import { ToggleSwitch }  from "toggleswitch.slint";
+import { AccentSlider }  from "accentslider.slint";
+import { NumberField }   from "numberfield.slint";
+
+export component SettingsMenu inherits Rectangle {
+    background: #000000;
+
+    // App state exposed to host code
+    in-out property <float> volume: 0.5;
+
+    in-out property <float> alpha: 0.996;
+
+    in-out property <bool>  enable_low:  true;
+    in-out property <bool>  enable_mid:  true;
+    in-out property <bool>  enable_high: true;
+
+    in-out property <float> band_volume_low:  1.0;
+    in-out property <float> band_volume_mid:  0.5;
+    in-out property <float> band_volume_high: 0.2;
+
+    in-out property <float> band_low_lo:   10.0;
+    in-out property <float> band_low_hi:   500.0;
+    in-out property <float> band_mid_lo:   60.0;
+    in-out property <float> band_mid_hi:   1000.0;
+    in-out property <float> band_high_lo:  100.0;
+    in-out property <float> band_high_hi:  10000.0;
+
+    in-out property <float> bass_boost: 0.0;
+
+    in-out property <bool>  random_seed: false;
+    in-out property <float> seed: 0.0;
+
+    // callbacks surfaced to Rust
+    callback config_changed();
+    callback go_back();
+
+    // generic numeric text commit (field_name, raw_text)
+    callback number_text_committed(string, string);
+    callback volume_text_committed(string);
+
+    // theme / fonts
+    in property <image> icon_close: @image-url("icons/arrow-big-left.svg");
+    in property <color>  accent: #663366;
+
+    in property <length> font_title: 20px;
+    in property <length> font_label: 16px;
+
+    function enforce_cross_band() {
+        // per-band min/max values
+        band_low_lo  = max(1.0,      min(1000.0,  band_low_lo));
+        band_low_hi  = max(1.0,      min(1000.0,  band_low_hi));
+        band_mid_lo  = max(1.0,      min(5000.0,  band_mid_lo));
+        band_mid_hi  = max(1.0,      min(5000.0,  band_mid_hi));
+        band_high_lo = max(1.0,      min(10000.0, band_high_lo));
+        band_high_hi = max(1.0,      min(10000.0, band_high_hi));
+
+        // intra-band: lo ≤ hi
+        if (band_low_lo  > band_low_hi)  { band_low_hi  = band_low_lo;  }
+        if (band_mid_lo  > band_mid_hi)  { band_mid_hi  = band_mid_lo;  }
+        if (band_high_lo > band_high_hi) { band_high_hi = band_high_lo; }
+
+        // cross-band: low.hi ≤ mid.lo ≤ mid.hi ≤ high.lo
+        if (band_low_hi > band_mid_lo)   { band_mid_lo  = band_low_hi;  }
+        if (band_mid_hi > band_high_lo)  { band_high_lo = band_mid_hi;  }
+    }
+
+    // Combine "is editing" from all sections
+    property <bool> any_field_editing:
+          vol_section.is_editing
+        || low_section.is_editing
+        || mid_section.is_editing
+        || high_section.is_editing
+        || bass_section.is_editing
+        || seed_section.is_editing;
+
+    // Global blur sink to remove focus from any NumberField (THIS IS BROKEN)
+    global_blur_sink := FocusScope { }
+
+    // Backdrop that catches taps on empty space while any field is editing (THIS IS PROBABLY BROKEN)
+    backdrop := TouchArea {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+        z: -1;
+        visible: any_field_editing;
+        enabled: any_field_editing;
+        clicked => { global_blur_sink.focus(); } // triggers commit via focus loss
+    }
+
+    // Layout
+    VerticalLayout {
+        padding: 12px;
+        spacing: 12px;
+
+        // Top bar
+        HorizontalLayout {
+            spacing: 8px;
+
+            Rectangle { horizontal-stretch: 1; height: 40px; background: #000000; }
+
+            Rectangle {
+                width: 40px; height: 40px;
+                border-radius: self.height / 2;
+                background: #000000;
+                border-color: accent;
+                border-width: 3px;
+
+                Image {
+                    source: icon_close;
+                    colorize: accent;
+                    width: parent.width * 0.55;
+                    height: parent.height * 0.55;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                TouchArea { clicked => go_back(); }
+            }
+        }
+
+        flick := Flickable {
+            // Disable scroll while editing so drags select text instead of scrolling (Absolutely broken)
+            interactive: !root.any_field_editing;
+
+            viewport_height: parent.height * 1.2;
+
+            content := Rectangle {
+                col := VerticalLayout {
+
+                    // Volume
+                    vol_section := VolumeSection {
+                        volume <=> root.volume;
+                        font_title: root.font_title;
+                        accent: root.accent;
+
+                        volume_text_committed(t) => {
+                            root.number_text_committed("volume_pct", t);
+                        }
+
+                        config_changed => root.config_changed();
+                    }
+
+                    // Alpha
+                    alpha_section := AlphaSection {
+                        alpha <=> root.alpha;
+                        font_title: root.font_title;
+                        accent: root.accent;
+
+                        alpha_text_committed(t) => {
+                            root.number_text_committed("alpha", t);
+                        }
+
+                        config_changed => root.config_changed();
+                    }
+
+                    // Low
+                    low_section := BandSection {
+                        band_name: "Low";
+                        accent: root.accent; font_title: root.font_title; font_label: root.font_label;
+
+                        enabled      <=> root.enable_low;
+                        band_volume  <=> root.band_volume_low;
+                        lo           <=> root.band_low_lo;
+                        hi           <=> root.band_low_hi;
+
+                        lo_min: 1.0;    lo_max: 1000.0;
+                        hi_min: 1.0;    hi_max: 1000.0;
+
+                        lo_text_committed(t)   => { root.number_text_committed("band_low_lo", t); }
+                        hi_text_committed(t)   => { root.number_text_committed("band_low_hi", t); }
+                        gain_text_committed(t) => { root.number_text_committed("band_volume_low", t); }
+
+                        config_changed => { root.enforce_cross_band(); root.config_changed(); }
+                    }
+
+                    // Mid
+                    mid_section := BandSection {
+                        band_name: "Mid";
+                        accent: root.accent; font_title: root.font_title; font_label: root.font_label;
+
+                        enabled      <=> root.enable_mid;
+                        band_volume  <=> root.band_volume_mid;
+                        lo           <=> root.band_mid_lo;
+                        hi           <=> root.band_mid_hi;
+
+                        lo_min: 1.0;    lo_max: 5000.0;
+                        hi_min: 1.0;    hi_max: 5000.0;
+
+                        lo_text_committed(t)   => { root.number_text_committed("band_mid_lo", t); }
+                        hi_text_committed(t)   => { root.number_text_committed("band_mid_hi", t); }
+                        gain_text_committed(t) => { root.number_text_committed("band_volume_mid", t); }
+
+                        config_changed => { root.enforce_cross_band(); root.config_changed(); }
+                    }
+
+                    // High
+                    high_section := BandSection {
+                        band_name: "High";
+                        accent: root.accent; font_title: root.font_title; font_label: root.font_label;
+
+                        enabled      <=> root.enable_high;
+                        band_volume  <=> root.band_volume_high;
+                        lo           <=> root.band_high_lo;
+                        hi           <=> root.band_high_hi;
+
+                        lo_min: 1.0;    lo_max: 10000.0;
+                        hi_min: 1.0;    hi_max: 10000.0;
+
+                        lo_text_committed(t)   => { root.number_text_committed("band_high_lo", t); }
+                        hi_text_committed(t)   => { root.number_text_committed("band_high_hi", t); }
+                        gain_text_committed(t) => { root.number_text_committed("band_volume_high", t); }
+
+                        config_changed => { root.enforce_cross_band(); root.config_changed(); }
+                    }
+
+                    // Bass boost
+                    bass_section := BassBoostSection {
+                        bass_boost <=> root.bass_boost;
+                        accent: root.accent; font_title: root.font_title; font_label: root.font_label;
+
+                        text_committed(t) => { root.number_text_committed("bass_boost", t); }
+
+                        config_changed => root.config_changed();
+                    }
+
+                    // Seed
+                    seed_section := SeedSection {
+                        random_seed <=> root.random_seed;
+                        seed        <=> root.seed;
+                        accent: root.accent; font_title: root.font_title; font_label: root.font_label;
+
+                        seed_text_committed(t) => { root.number_text_committed("seed", t); }
+
+                        config_changed => root.config_changed();
+                    }
+                }
+            }
+        }
+    }
+}

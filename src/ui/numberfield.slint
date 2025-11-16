@@ -1,0 +1,129 @@
+import { LineEdit } from "std-widgets.slint";
+
+export component NumberField inherits Rectangle {
+    // Public API
+    in-out property <float> value: 0.0;           // bound float
+    in property  <float> minimum: -1000000000000; // avoid scientific literal
+    in property  <float> maximum:  1000000000000;
+    in property  <int>   decimals: 0;             // shown decimal places
+    in property  <float> display_multiplier: 100; // 0.75 -> "75"
+    in property  <color>  accent: #663366;
+    in property  <length> thickness: 3px;
+    in property  <length> corner: 8px;
+
+    // Emits the raw text the user typed when we commit (Enter or blur)
+    callback commit(string);
+
+    // Expose whether we're currently editing (used by backdrop)
+    out property <bool> is_editing: le.has-focus;
+
+    // Chrome
+    width: 72px;
+    height: 28px;
+    border-width: thickness;
+    border-color: accent;
+    border-radius: corner;
+    background: #000000;
+    clip: true;
+
+    // helpers
+    function pow10(n: int) -> float {
+        if (n <= 0) { 1.0 } else {
+            if (n == 1) { 10.0 } else {
+                if (n == 2) { 100.0 } else {
+                    if (n == 3) { 1000.0 } else {
+                        if (n == 4) { 10000.0 } else {
+                            if (n == 5) { 100000.0 } else { 1000000.0 }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function fmt(v: float) -> string {
+        let cl = max(minimum, min(maximum, v));
+        let m  = pow10(decimals);
+        let shown = (round(cl * display_multiplier * m)) / m;
+        "" + shown
+    }
+
+    // Centered readout when not editing
+    overlay := Text {
+        x: 2px; y: 2px;
+        width:  parent.width - 4px;
+        height: parent.height - 4px;
+        text: root.fmt(root.value);
+        color: root.accent;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-weight: 600;
+        visible: !le.has-focus;
+    }
+
+    // Click-to-edit target that exists ONLY while not editing
+    overlay_ta := TouchArea {
+        x: 0px; y: 0px;
+        width: parent.width; height: parent.height;
+        visible: overlay.visible;
+        enabled: overlay.visible;
+        clicked => {
+            // preload current formatted value
+            le.text = root.fmt(root.value);
+            le.focus();
+        }
+    }
+
+    // Declare BEFORE `le` so clicks inside the text still go to LineEdit. (THIS IS BROKEN)
+    guard_ta := TouchArea {
+        x: 0px; y: 0px;
+        width: parent.width; height: parent.height;
+        visible: le.has-focus;
+        enabled: le.has-focus;
+        clicked => { le.focus(); } // don’t blur/commit; just keep editing
+    }
+
+    // Actual editor (visible only while focused)
+    le := LineEdit {
+        x: 2px; y: 2px;
+        width:  parent.width - 4px;
+        height: parent.height - 4px;
+
+        // keep it invisible when not editing, but still present to hold focus
+        opacity: self.has-focus ? 100% : 0%;
+
+        // commit on Enter, then blur to exit edit mode
+        accepted => { root.commit(self.text); blur_sink.focus(); }
+    }
+
+    // Commit / preload on focus transitions (desktop & touch)
+    property <bool> _last_focus: false;
+
+    Timer {
+        running: true;
+        interval: 40ms;
+
+        triggered => {
+            // focus gained: preload formatted value (covers keyboard/tab focus, etc.)
+            if (!root._last_focus && le.has-focus) {
+                le.text = root.fmt(root.value);
+            }
+
+            // focus lost: commit whatever is in the line edit
+            if (root._last_focus && !le.has-focus) {
+                root.commit(le.text);
+            }
+
+            root._last_focus = le.has-focus;
+        }
+    }
+
+    // Inert focus sink to "blur" the LineEdit by moving focus elsewhere (THIS IS BROKEN)
+    blur_sink := FocusScope { }
+
+    // callable from outside (e.g., backdrop) to force a commit & blur
+    public function force_commit() {
+        root.commit(le.text);
+        blur_sink.focus();
+    }
+}

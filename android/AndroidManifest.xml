@@ -1,0 +1,29 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.melechtna.noisegenerator">
+
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="30" />
+
+    <application
+        android:label="Noise Generator"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:debuggable="true"
+        android:hasCode="false">
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="Noise Generator"
+            android:icon="@mipmap/ic_launcher"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|screenSize">
+
+            <!-- IMPORTANT: must match your cdylib name (libnoise_generator.so) -->
+            <meta-data android:name="android.app.lib_name" android:value="noise_generator" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

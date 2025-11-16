@@ -1,0 +1,44 @@
+import { Section } from "section.slint";
+import { AccentSlider } from "accentslider.slint";
+import { NumberField } from "numberfield.slint";
+
+export component BassBoostSection inherits Section {
+    in-out property <float> bass_boost: 0.0;
+    in property <length> font_title: 20px;
+    in property <length> font_label: 16px;
+
+    callback config_changed();
+    callback text_committed(string);
+
+    // expose editing state
+    out property <bool> is_editing: nf.is_editing;
+
+    title: "Bass Boost";
+    title_size: font_title;
+
+    content := HorizontalLayout {
+        spacing: 8px;
+
+        AccentSlider {
+            horizontal-stretch: 1;
+            value   <=> root.bass_boost;
+            minimum : 0.0;
+            maximum : 10.0;
+            accent: root.accent;
+            thickness: 3px; knob_inset: 8px;
+            track_height: 10px; top_gap: 4px; bottom_gap: 8px;
+            changed => root.config_changed();
+        }
+
+        nf := NumberField {
+            width: 72px;
+            value  <=> root.bass_boost;
+            minimum: 0.0;
+            maximum: 10.0;
+            decimals: 2;
+            display_multiplier: 1.0;
+            accent: root.accent; thickness: 3px; corner: 8px;
+            commit(t) => { root.text_committed(t); }
+        }
+    }
+}
