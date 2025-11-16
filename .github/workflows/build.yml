@@ -148,7 +148,7 @@ jobs:
             make install
           )
 
-  # fontconfig (needs expat+freetype from sysroot)
+          # fontconfig (needs expat+freetype from sysroot)
           curl -L https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.14.2.tar.xz | tar xJf -
           ( cd fontconfig-2.14.2
             CC=aarch64-linux-gnu-gcc \
