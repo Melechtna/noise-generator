@@ -67,31 +67,47 @@ jobs:
         - uses: actions/checkout@v4
 
         # Fix 404s by adding ubuntu-ports arm64 sources
-        - name: Enable multi-arch cleanly (amd64 + arm64) and update
+        - name: Sanitize APT sources for multiarch (amd64 + arm64)
+          shell: bash
           run: |
+            set -euxo pipefail
             sudo dpkg --add-architecture arm64
 
-            # Backup & disable the default sources to avoid mixed-arch 404s
-            sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
-            sudo sed -i 's/^\s*deb /# deb /' /etc/apt/sources.list
+            # Disable ALL default sources (legacy .list and deb822 .sources)
+            sudo mkdir -p /etc/apt/disabled-sources
+            for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+              [ -e "$f" ] && sudo mv "$f" "/etc/apt/disabled-sources/$(basename "$f").bak" || true
+            done
 
-            # AMD64 mirrors (normal)
-            sudo tee /etc/apt/sources.list.d/ubuntu-amd64.list >/dev/null <<'EOF'
-            deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu noble main restricted universe multiverse
-            deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse
-            deb [arch=amd64] http://security.ubuntu.com/ubuntu noble-security main restricted universe multiverse
-            deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu noble-backports main restricted universe multiverse
+            # amd64 from normal mirrors
+            sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
+            Types: deb
+            URIs: http://azure.archive.ubuntu.com/ubuntu
+            Suites: noble noble-updates noble-backports
+            Components: main restricted universe multiverse
+            Architectures: amd64
+            Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
             EOF
-            
-            # ARM64 mirrors (ports)
-            sudo tee /etc/apt/sources.list.d/ubuntu-arm64.list >/dev/null <<'EOF'
-            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
-            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
-            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
-            deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse
+            sudo tee -a /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
+            Types: deb
+            URIs: http://security.ubuntu.com/ubuntu
+            Suites: noble-security
+            Components: main restricted universe multiverse
+            Architectures: amd64
+            Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
             EOF
-            
-            sudo apt-get update
+
+            # arm64 only from ports
+            sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources >/dev/null <<'EOF'
+            Types: deb
+            URIs: http://ports.ubuntu.com/ubuntu-ports
+            Suites: noble noble-updates noble-backports noble-security
+            Components: main restricted universe multiverse
+            Architectures: arm64
+            Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+            EOF
+
+            sudo apt-get -o Acquire::Retries=5 update
 
         - name: Install cross toolchain + ARM64 sysroot
           run: |
