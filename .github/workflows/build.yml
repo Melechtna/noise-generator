@@ -66,6 +66,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust (stable + aarch64 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: linux-arm64-cross
+
       - name: Toolchains that RUN on amd64 and TARGET arm64
         shell: bash
         run: |
