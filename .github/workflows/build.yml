@@ -66,42 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Make arm64 packages resolvable on amd64
-      - name: Enable ubuntu-ports for arm64
-        shell: bash
-        run: |
-          set -euxo pipefail
-          sudo dpkg --add-architecture arm64
-          sudo mkdir -p /etc/apt/disabled-sources
-          for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
-            [ -e "$f" ] && sudo mv "$f" "/etc/apt/disabled-sources/$(basename "$f").bak" || true
-          done
-          sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
-          Types: deb
-          URIs: http://azure.archive.ubuntu.com/ubuntu
-          Suites: noble noble-updates noble-backports
-          Components: main restricted universe multiverse
-          Architectures: amd64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          EOF
-          sudo tee -a /etc/apt/sources.list.d/ubuntu-amd64.sources >/dev/null <<'EOF'
-          Types: deb
-          URIs: http://security.ubuntu.com/ubuntu
-          Suites: noble-security
-          Components: main restricted universe multiverse
-          Architectures: amd64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          EOF
-          sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources >/dev/null <<'EOF'
-          Types: deb
-          URIs: http://ports.ubuntu.com/ubuntu-ports
-          Suites: noble noble-updates noble-backports noble-security
-          Components: main restricted universe multiverse
-          Architectures: arm64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          EOF
-          sudo apt-get -o Acquire::Retries=5 update
-
       - name: Setup Rust (stable + aarch64 target)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -111,32 +75,94 @@ jobs:
         with:
           key: linux-arm64-cross
 
-      # Cross toolchains that RUN on amd64 and TARGET aarch64
-      - name: Toolchains
+      - name: Toolchains that RUN on amd64 and TARGET arm64
         shell: bash
         run: |
           set -euxo pipefail
+          sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            clang ninja-build pkg-config
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            binutils-aarch64-linux-gnu clang ninja-build pkg-config curl bzip2 make autoconf automake libtool
 
-      # AArch64 runtime/link deps for Slint/winit stack
-      - name: AArch64 dev packages (freetype/fontconfig/alsa/expat)
+      - name: Build ALSA (arm64) into local sysroot
         shell: bash
         run: |
           set -euxo pipefail
-          sudo apt-get install -y --no-install-recommends \
-            libfreetype6-dev:arm64 libfontconfig1-dev:arm64 libexpat1-dev:arm64 libasound2-dev:arm64 \
-            libxkbcommon-dev:arm64 libwayland-dev:arm64 libgl1-mesa-dev:arm64
+          SYSROOT="$PWD/sysroot-aarch64"
+          mkdir -p "$SYSROOT"
+          curl -L https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.9.tar.bz2 | tar xjf -
+          cd alsa-lib-1.2.9
+          CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar RANLIB=aarch64-linux-gnu-ranlib \
+          ./configure --host=aarch64-linux-gnu --prefix="$SYSROOT/usr" --disable-alsatest
+          make -j"$(nproc)"
+          make install
 
-      - name: Build (cross)
+          # Export for the Cargo step
+          echo "PKG_CONFIG_PATH=$SYSROOT/usr/lib/pkgconfig:$SYSROOT/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_SYSROOT_DIR=$SYSROOT" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=$SYSROOT/usr/lib:$SYSROOT/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+
+      - name: Build zlib (arm64) into sysroot
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SYSROOT="$PWD/sysroot-aarch64"
+          mkdir -p "$SYSROOT"
+          curl -L https://zlib.net/zlib-1.3.1.tar.xz | tar xJf -
+          cd zlib-1.3.1
+          CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar RANLIB=aarch64-linux-gnu-ranlib \
+            ./configure --prefix="$SYSROOT/usr"
+          make -j"$(nproc)"
+          make install
+
+      - name: Build expat + freetype + fontconfig (arm64) into sysroot
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SYSROOT="$PWD/sysroot-aarch64"
+          export PKG_CONFIG_LIBDIR="$SYSROOT/usr/lib/pkgconfig:$SYSROOT/usr/share/pkgconfig"
+          export PKG_CONFIG_SYSROOT_DIR="$SYSROOT"
+          export LDFLAGS="-L$SYSROOT/usr/lib -Wl,-rpath-link,$SYSROOT/usr/lib"
+
+          # expat
+          curl -L https://github.com/libexpat/libexpat/releases/download/R_2_6_3/expat-2.6.3.tar.bz2 | tar xjf -
+          ( cd expat-2.6.3
+            CC=aarch64-linux-gnu-gcc ./configure --host=aarch64-linux-gnu --prefix="$SYSROOT/usr" --disable-docs
+            make -j"$(nproc)"
+            make install
+          )
+
+          # freetype (use the zlib we just installed; avoid png/harfbuzz)
+          curl -L https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz | tar xJf -
+          ( cd freetype-2.13.3
+            CC=aarch64-linux-gnu-gcc \
+            ZLIB_CFLAGS="" ZLIB_LIBS="-L$SYSROOT/usr/lib -lz" \
+            ./configure --host=aarch64-linux-gnu --prefix="$SYSROOT/usr" \
+                        --without-harfbuzz --without-png
+            make -j"$(nproc)"
+            make install
+          )
+
+          # fontconfig (needs expat+freetype from sysroot)
+          curl -L https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.14.2.tar.xz | tar xJf -
+          ( cd fontconfig-2.14.2
+            CC=aarch64-linux-gnu-gcc \
+            ./configure --host=aarch64-linux-gnu --prefix="$SYSROOT/usr" --disable-docs
+            make -j"$(nproc)"
+            make install
+          )
+
+          # Export for the Rust build step (use LIBDIR, not PATH)
+          echo "PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR" >> $GITHUB_ENV
+          echo "PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=$SYSROOT/usr/lib" >> $GITHUB_ENV
+
+      - name: Build (cross; uses ALSA from sysroot)
         env:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           PKG_CONFIG_ALLOW_CROSS: "1"
-          PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-          PKG_CONFIG_SYSROOT_DIR: /
         run: |
           cargo build --release --target aarch64-unknown-linux-gnu --bin noise-generator
           mkdir -p target/artifacts
