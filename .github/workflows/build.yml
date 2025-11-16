@@ -102,18 +102,19 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 update
 
       - name: Install cross toolchain + ARM64 sysroot
+        shell: bash
         run: |
-          # Cross toolchains that RUN on amd64 and TARGET aarch64
+          set -euxo pipefail
+
           sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             clang ninja-build pkg-config
 
-          # ARM64 target headers/libs for linking
           sudo apt-get install -y --no-install-recommends \
             libc6-dev:arm64 linux-libc-dev:arm64 zlib1g-dev:arm64 \
             libasound2-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 \
-            libx11-dev:arm64 libxkbcommon-dev:arm64 libxcb1-dev:arm64 \
-            libxcb-render0-dev:arm64 libxcb-shape0-dev:arm64 libxcb-xfixes0-dev:arm64 \
+            libxkbcommon-dev:arm64 libxcb1-dev:arm64 libxcb-render0-dev:arm64 \
+            libxcb-shape0-dev:arm64 libxcb-xfixes0-dev:arm64 \
             libwayland-dev:arm64 libgl1-mesa-dev:arm64
 
       - uses: dtolnay/rust-toolchain@stable
