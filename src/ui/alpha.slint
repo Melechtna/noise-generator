@@ -44,6 +44,11 @@ export component AlphaSection inherits Section {
             thickness: 3px;
             corner: 8px;
             commit(t) => { root.alpha_text_committed(t); }
+            focus_changed(active) => {
+                if (active) {
+                    root.request_field_visible(self.absolute-position.y, self.height);
+                }
+            }
         }
     }
 }

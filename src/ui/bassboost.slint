@@ -39,6 +39,11 @@ export component BassBoostSection inherits Section {
             display_multiplier: 1.0;
             accent: root.accent; thickness: 3px; corner: 8px;
             commit(t) => { root.text_committed(t); }
+            focus_changed(active) => {
+                if (active) {
+                    root.request_field_visible(self.absolute-position.y, self.height);
+                }
+            }
         }
     }
 }

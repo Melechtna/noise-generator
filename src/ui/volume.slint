@@ -44,6 +44,11 @@ export component VolumeSection inherits Section {
             thickness            : 3px;
             corner               : 8px;
             commit(text) => { root.volume_text_committed(text); }
+            focus_changed(active) => {
+                if (active) {
+                    root.request_field_visible(self.absolute-position.y, self.height);
+                }
+            }
         }
     }
 }

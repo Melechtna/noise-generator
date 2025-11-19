@@ -71,6 +71,32 @@ export component SettingsMenu inherits Rectangle {
         if (band_mid_hi > band_high_lo)  { band_high_lo = band_mid_hi;  }
     }
 
+    function ensure_field_visible(field_top: length, field_height: length) {
+        let viewport_origin = flick.absolute-position.y;
+        let field_offset = (field_top - viewport_origin) + flick.viewport-y;
+        let field_bottom = field_offset + field_height;
+        let margin = 24px;
+
+        let view_top = flick.viewport-y;
+        let view_bottom = flick.viewport-y + flick.height;
+
+        if (field_offset < view_top + margin) {
+            let desired = field_offset - margin;
+            if (desired < 0px) {
+                flick.viewport-y = 0px;
+            } else {
+                flick.viewport-y = desired;
+            }
+        } else if (field_bottom > view_bottom - margin) {
+            let desired = field_bottom + margin - flick.height;
+            if (desired < 0px) {
+                flick.viewport-y = 0px;
+            } else {
+                flick.viewport-y = desired;
+            }
+        }
+    }
+
     // Combine "is editing" from all sections
     property <bool> any_field_editing:
           vol_section.is_editing
@@ -105,7 +131,7 @@ export component SettingsMenu inherits Rectangle {
 
             Rectangle {
                 width: 40px; height: 40px;
-                border-radius: self.height / 2;
+                border-radius: self.height;
                 background: #000000;
                 border-color: accent;
                 border-width: 3px;
@@ -114,7 +140,6 @@ export component SettingsMenu inherits Rectangle {
                     source: icon_close;
                     colorize: accent;
                     width: parent.width * 0.55;
-                    height: parent.height * 0.55;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -127,7 +152,7 @@ export component SettingsMenu inherits Rectangle {
             // Disable scroll while editing so drags select text instead of scrolling (Absolutely broken)
             interactive: !root.any_field_editing;
 
-            viewport_height: parent.height * 1.2;
+            viewport_height: parent.height * 1.3;
 
             content := Rectangle {
                 col := VerticalLayout {
@@ -143,6 +168,9 @@ export component SettingsMenu inherits Rectangle {
                         }
 
                         config_changed => root.config_changed();
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
 
                     // Alpha
@@ -156,6 +184,9 @@ export component SettingsMenu inherits Rectangle {
                         }
 
                         config_changed => root.config_changed();
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
 
                     // Low
@@ -176,6 +207,9 @@ export component SettingsMenu inherits Rectangle {
                         gain_text_committed(t) => { root.number_text_committed("band_volume_low", t); }
 
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
 
                     // Mid
@@ -196,6 +230,9 @@ export component SettingsMenu inherits Rectangle {
                         gain_text_committed(t) => { root.number_text_committed("band_volume_mid", t); }
 
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
 
                     // High
@@ -216,6 +253,9 @@ export component SettingsMenu inherits Rectangle {
                         gain_text_committed(t) => { root.number_text_committed("band_volume_high", t); }
 
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
 
                     // Bass boost
@@ -226,6 +266,9 @@ export component SettingsMenu inherits Rectangle {
                         text_committed(t) => { root.number_text_committed("bass_boost", t); }
 
                         config_changed => root.config_changed();
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
 
                     // Seed
@@ -237,7 +280,11 @@ export component SettingsMenu inherits Rectangle {
                         seed_text_committed(t) => { root.number_text_committed("seed", t); }
 
                         config_changed => root.config_changed();
+                        request_field_visible(top, height) => {
+                            root.ensure_field_visible(top, height);
+                        }
                     }
+
                 }
             }
         }

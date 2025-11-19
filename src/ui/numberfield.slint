@@ -13,6 +13,7 @@ export component NumberField inherits Rectangle {
 
     // Emits the raw text the user typed when we commit (Enter or blur)
     callback commit(string);
+    callback focus_changed(bool);
 
     // Expose whether we're currently editing (used by backdrop)
     out property <bool> is_editing: le.has-focus;
@@ -92,6 +93,7 @@ export component NumberField inherits Rectangle {
             } else {
                 root.commit(self.text);
             }
+            root.focus_changed(self.has-focus);
         }
 
         // commit on Enter, then blur to exit edit mode

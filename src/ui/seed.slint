@@ -52,6 +52,11 @@ export component SeedSection inherits Section {
             visible: !root.random_seed;
 
             commit(t) => { root.seed_text_committed(t); root.config_changed(); }
+            focus_changed(active) => {
+                if (active) {
+                    root.request_field_visible(self.absolute-position.y, self.height);
+                }
+            }
         }
     }
 }
