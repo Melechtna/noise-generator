@@ -97,6 +97,13 @@ export component SettingsMenu inherits Rectangle {
         }
     }
 
+    function queue_field_focus(field_top: length, field_height: length) {
+        root.ensure_field_visible(field_top, field_height);
+        root._pending_field_top = field_top;
+        root._pending_field_height = field_height;
+        root._pending_scroll = true;
+    }
+
     // Combine "is editing" from all sections
     property <bool> any_field_editing:
           vol_section.is_editing
@@ -184,10 +191,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 
@@ -203,10 +207,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 
@@ -229,10 +230,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 
@@ -255,10 +253,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 
@@ -281,10 +276,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 
@@ -297,10 +289,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 
@@ -314,10 +303,7 @@ export component SettingsMenu inherits Rectangle {
 
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
-                            root.ensure_field_visible(top, height);
-                            root._pending_field_top = top;
-                            root._pending_field_height = height;
-                            root._pending_scroll = true;
+                            root.queue_field_focus(top, height);
                         }
                     }
 

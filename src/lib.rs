@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
-use slint::{CloseRequestResponse, ComponentHandle};
+use slint::CloseRequestResponse;
 use std::sync::{Arc, Mutex};
 
 use std::path::PathBuf;

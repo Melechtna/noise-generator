@@ -16,7 +16,8 @@ std::thread_local! {
     static FILTERS_L: std::cell::RefCell<Option<(Biquad, Biquad, Biquad)>> = std::cell::RefCell::new(None);
     static FILTERS_R: std::cell::RefCell<Option<(Biquad, Biquad, Biquad)>> = std::cell::RefCell::new(None);
 
-    static BASS_BOOST: std::cell::RefCell<BassBoost> = std::cell::RefCell::new(BassBoost::new(48000.0));
+    static BASS_BOOST_L: std::cell::RefCell<BassBoost> = std::cell::RefCell::new(BassBoost::new(48000.0));
+    static BASS_BOOST_R: std::cell::RefCell<BassBoost> = std::cell::RefCell::new(BassBoost::new(48000.0));
 
     static NOISE_L: std::cell::RefCell<f32> = std::cell::RefCell::new(0.0);
     static NOISE_R: std::cell::RefCell<f32> = std::cell::RefCell::new(0.0);
@@ -97,7 +98,8 @@ pub fn init_stream(
         }
 
         // Bass boost tracks cfg
-        BASS_BOOST.with(|bb| bb.borrow_mut().set_boost(cfg.bass_boost));
+        BASS_BOOST_L.with(|bb| bb.borrow_mut().set_boost(cfg.bass_boost));
+        BASS_BOOST_R.with(|bb| bb.borrow_mut().set_boost(cfg.bass_boost));
 
         // Noise + filters
         NOISE_L.with(|bl| {
@@ -157,13 +159,13 @@ pub fn init_stream(
                     });
 
                     let low_boost_l = if cfg.enable_low {
-                        BASS_BOOST.with(|bb| bb.borrow_mut().process(low_l))
+                        BASS_BOOST_L.with(|bb| bb.borrow_mut().process(low_l))
                     } else {
                         0.0
                     };
 
                     let low_boost_r = if cfg.enable_low {
-                        BASS_BOOST.with(|bb| bb.borrow_mut().process(low_r))
+                        BASS_BOOST_R.with(|bb| bb.borrow_mut().process(low_r))
                     } else {
                         0.0
                     };

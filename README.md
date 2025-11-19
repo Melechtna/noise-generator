@@ -87,13 +87,7 @@ The app uses your OS-native config directory:
 
 ## Known Issues (**Contributions welcome**)
 
- - **Numeric fields** (NumberField)
-
-On all platforms there are **focus quirks** (e.g., clicking a second time may deselect; behavior differs between mouse and touch).
-
-- **Android:** the settings screen doesn’t shift upwards when the keyboard appears.
-
-It’s minor but visible/nioticable when using the UI; fix PRs are welcome. The android one is more, I didn't look into it. The NumberField issue is one I simply cannot work out how to resolve. As such, there's also some optimizations possible in the code as well, as I am pretty sure there's a few variables that exist in attempts to fix this that probably shouldn't be there.
+- **Android:** the settings screen doesn’t shift upwards when the keyboard appears properly.
 
 - **Linux Icons**: At the moment I can't figure out how to make slint properly provide the applications APPID and Title so that desktops properly link back to the icon provided in the installer.
 

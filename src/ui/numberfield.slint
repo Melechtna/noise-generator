@@ -103,15 +103,9 @@ export component NumberField inherits Rectangle {
         }
     }
 
-    // Inert focus sink to "blur" the LineEdit by moving focus elsewhere (THIS IS BROKEN)
+    // Inert focus sink to "blur" the LineEdit by moving focus elsewhere
     blur_sink := FocusScope {
         width: 0px;
         height: 0px;
-    }
-
-    // callable from outside (e.g., backdrop) to force a commit & blur
-    public function force_commit() {
-        root.commit(le.text);
-        blur_sink.focus();
     }
 }
