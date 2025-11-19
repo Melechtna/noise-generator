@@ -57,7 +57,8 @@ cat > "$OUT/../AndroidManifest.xml" <<'XML'
             android:label="Noise Generator"
             android:icon="@mipmap/ic_launcher"
             android:exported="true"
-            android:configChanges="orientation|keyboardHidden|screenSize">
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:windowSoftInputMode="adjustResize">
 
             <!-- IMPORTANT: must match your cdylib name (libnoise_generator.so) -->
             <meta-data android:name="android.app.lib_name" android:value="noise_generator" />

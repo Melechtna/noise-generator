@@ -136,8 +136,14 @@ pub fn run_app() -> Result<()> {
 
     println!("Noise generator running – edit config.toml or use UI");
 
+    #[cfg(target_os = "linux")]
+    if let Err(err) = slint::set_xdg_app_id("io.melechtna.noise-generator") {
+        eprintln!("warning: unable to set XDG app id: {err}");
+    }
+
     // Create UI
     let ui = RootUI::new().unwrap();
+
     ui.window().set_size(slint::LogicalSize::new(460.0, 720.0));
 
     // Load config into UI

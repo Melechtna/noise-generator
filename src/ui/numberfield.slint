@@ -70,17 +70,9 @@ export component NumberField inherits Rectangle {
         clicked => {
             // preload current formatted value
             le.text = root.fmt(root.value);
+            le.select-all();
             le.focus();
         }
-    }
-
-    // Declare BEFORE `le` so clicks inside the text still go to LineEdit. (THIS IS BROKEN)
-    guard_ta := TouchArea {
-        x: 0px; y: 0px;
-        width: parent.width; height: parent.height;
-        visible: le.has-focus;
-        enabled: le.has-focus;
-        clicked => { le.focus(); } // don’t blur/commit; just keep editing
     }
 
     // Actual editor (visible only while focused)
@@ -89,37 +81,31 @@ export component NumberField inherits Rectangle {
         width:  parent.width - 4px;
         height: parent.height - 4px;
 
-        // keep it invisible when not editing, but still present to hold focus
-        opacity: self.has-focus ? 100% : 0%;
+        // only interactive while editing so the overlay can receive taps
+        visible: self.has-focus;
+
+        // handle focus transitions deterministically
+        changed has-focus => {
+            if (self.has-focus) {
+                self.text = root.fmt(root.value);
+                self.select-all();
+            } else {
+                root.commit(self.text);
+            }
+        }
 
         // commit on Enter, then blur to exit edit mode
-        accepted => { root.commit(self.text); blur_sink.focus(); }
-    }
-
-    // Commit / preload on focus transitions (desktop & touch)
-    property <bool> _last_focus: false;
-
-    Timer {
-        running: true;
-        interval: 40ms;
-
-        triggered => {
-            // focus gained: preload formatted value (covers keyboard/tab focus, etc.)
-            if (!root._last_focus && le.has-focus) {
-                le.text = root.fmt(root.value);
-            }
-
-            // focus lost: commit whatever is in the line edit
-            if (root._last_focus && !le.has-focus) {
-                root.commit(le.text);
-            }
-
-            root._last_focus = le.has-focus;
+        accepted => {
+            root.commit(self.text);
+            blur_sink.focus();
         }
     }
 
     // Inert focus sink to "blur" the LineEdit by moving focus elsewhere (THIS IS BROKEN)
-    blur_sink := FocusScope { }
+    blur_sink := FocusScope {
+        width: 0px;
+        height: 0px;
+    }
 
     // callable from outside (e.g., backdrop) to force a commit & blur
     public function force_commit() {

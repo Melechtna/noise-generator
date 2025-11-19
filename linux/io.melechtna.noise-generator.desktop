@@ -4,5 +4,6 @@ Name=Noise Generator
 Comment=Generates a continuous noise of your choosing
 Exec=noise-generator
 Icon=io.melechtna.noise-generator
+StartupWMClass=io.melechtna.noise-generator
 Terminal=false
 Categories=Audio;Utility;

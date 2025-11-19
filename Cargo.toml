@@ -27,6 +27,8 @@ directories = "6.0.0"
 slint = { version = "1.14.1", default-features = false, features = [
   "compat-1-2",
   "backend-winit",
+  "backend-winit-wayland",
+  "backend-winit-x11",
   "renderer-skia",
 ] }
 
@@ -34,6 +36,8 @@ slint = { version = "1.14.1", default-features = false, features = [
 slint = { version = "1.14.1", default-features = false, features = [
     "compat-1-2",
     "backend-winit",
+    "backend-winit-wayland",
+    "backend-winit-x11",
     "renderer-software"
 ] }
 
