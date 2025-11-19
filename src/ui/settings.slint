@@ -106,6 +106,21 @@ export component SettingsMenu inherits Rectangle {
         || bass_section.is_editing
         || seed_section.is_editing;
 
+    // Track pending scroll requests (to re-run after keyboard resize)
+    property <length> _pending_field_top: 0px;
+    property <length> _pending_field_height: 0px;
+    property <bool> _pending_scroll: false;
+
+    Timer {
+        running: root._pending_scroll;
+        interval: 30ms;
+        triggered => {
+            root.ensure_field_visible(root._pending_field_top, root._pending_field_height);
+            root._pending_scroll = false;
+            self.running = false;
+        }
+    }
+
     // Global blur sink to remove focus from any NumberField (THIS IS BROKEN)
     global_blur_sink := FocusScope { }
 
@@ -170,6 +185,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
@@ -186,6 +204,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
@@ -209,6 +230,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
@@ -232,6 +256,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
@@ -255,6 +282,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => { root.enforce_cross_band(); root.config_changed(); }
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
@@ -268,6 +298,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
@@ -282,6 +315,9 @@ export component SettingsMenu inherits Rectangle {
                         config_changed => root.config_changed();
                         request_field_visible(top, height) => {
                             root.ensure_field_visible(top, height);
+                            root._pending_field_top = top;
+                            root._pending_field_height = height;
+                            root._pending_scroll = true;
                         }
                     }
 
